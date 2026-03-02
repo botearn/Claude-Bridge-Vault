@@ -33,12 +33,13 @@ export function ShareSnippet({ subKey, vendor }: ShareSnippetProps) {
   const config = VENDOR_CONFIG[vendor];
   const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + config.basePath;
 
-  const snippet =
-    vendor === 'claude'
-      ? `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`
-      : vendor === 'openai'
-        ? `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`
-        : `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gemini-pro","contents":[{"parts":[{"text":"Hello"}]}]}'`;
+  const snippets: Record<string, string> = {
+    claude: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`,
+    openai: `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`,
+    gemini: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gemini-pro","contents":[{"parts":[{"text":"Hello"}]}]}'`,
+    youragent: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`,
+  };
+  const snippet = snippets[vendor] ?? snippets.claude;
 
   return (
     <div className="space-y-3 text-sm">
