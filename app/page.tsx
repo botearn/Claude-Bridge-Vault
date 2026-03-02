@@ -7,10 +7,10 @@ import type { VendorId } from '@/lib/types';
 import { VendorCard } from '@/components/VendorCard';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 
-const VENDORS: VendorId[] = ['claude', 'openai', 'gemini', 'youragent'];
+const VENDORS: VendorId[] = ['youragent', 'claude', 'openai', 'gemini'];
 
 export default function VaultDashboard() {
-  const [activeVendor, setActiveVendor] = useState<VendorId>('claude');
+  const [activeVendor, setActiveVendor] = useState<VendorId>('youragent');
   const [showCreate, setShowCreate] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
