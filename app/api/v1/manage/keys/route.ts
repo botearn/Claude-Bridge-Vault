@@ -23,7 +23,11 @@ export async function GET(req: NextRequest) {
     const allKeys = await redis.hgetall<Record<string, string>>('vault:subkeys');
 
     if (!allKeys) {
-      return NextResponse.json({});
+      return NextResponse.json({}, {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      });
     }
 
     const filtered: Record<string, unknown> = {};
@@ -35,10 +39,22 @@ export async function GET(req: NextRequest) {
       filtered[key] = parsed;
     }
 
-    return NextResponse.json(filtered);
+    return NextResponse.json(filtered, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
   } catch (error) {
     console.error('Failed to load keys from Redis', error);
-    return NextResponse.json({ error: 'Vault datastore unavailable' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Vault datastore unavailable' },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      },
+    );
   }
 }
 
