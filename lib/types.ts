@@ -15,6 +15,9 @@ export interface SubKeyData {
   vendor: VendorId;
   group: string;
   usage: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
   createdAt: string;
   lastUsed: string | null;
   totalQuota: number | null;   // null = unlimited

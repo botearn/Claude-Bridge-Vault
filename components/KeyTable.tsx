@@ -41,6 +41,13 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
   const [shareKey, setShareKey] = useState<KeyRow | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
+  const formatUsd = (n: number) => {
+    if (!Number.isFinite(n)) return '—';
+    if (n === 0) return '$0.00';
+    if (n < 0.01) return '<$0.01';
+    return `$${n.toFixed(2)}`;
+  };
+
   const handleDelete = async (key: string) => {
     if (!confirm(t.keyTable.deleteConfirm)) return;
     setDeletingKey(key);
@@ -72,18 +79,35 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
               <th className="text-left py-2 pr-4">{t.keyTable.name}</th>
               <th className="text-left py-2 pr-4">{t.keyTable.key}</th>
               <th className="text-right py-2 pr-4">{t.keyTable.usage}</th>
+              <th className="text-right py-2 pr-4">{t.keyTable.remaining}</th>
+              <th className="text-right py-2 pr-4">{t.keyTable.tokens}</th>
+              <th className="text-right py-2 pr-4">{t.keyTable.cost}</th>
               <th className="text-left py-2 pr-4">{t.keyTable.lastUsed}</th>
               <th className="text-right py-2"></th>
             </tr>
           </thead>
           <tbody>
             {keys.map((row) => (
+              (() => {
+                const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - row.usage) : null;
+                const tokens = (row.inputTokens || 0) + (row.outputTokens || 0);
+                const cost = row.costUsd || 0;
+                return (
               <tr key={row.key} className="border-b border-black/5 hover:bg-black/[0.01] transition-colors">
                 <td className="py-3 pr-4 font-medium">{row.name}</td>
                 <td className="py-3 pr-4">
                   <TruncatedKey value={row.key} />
                 </td>
                 <td className="py-3 pr-4 text-right font-mono text-xs">{row.usage}</td>
+                <td className="py-3 pr-4 text-right font-mono text-xs">
+                  {remaining != null ? remaining.toLocaleString() : '∞'}
+                </td>
+                <td className="py-3 pr-4 text-right font-mono text-xs">
+                  {tokens ? tokens.toLocaleString() : '—'}
+                </td>
+                <td className="py-3 pr-4 text-right font-mono text-xs">
+                  {row.costUsd != null ? formatUsd(cost) : '—'}
+                </td>
                 <td className="py-3 pr-4 text-xs text-black/40">
                   {row.lastUsed ? new Date(row.lastUsed).toLocaleDateString() : '—'}
                 </td>
@@ -105,6 +129,8 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
                   </div>
                 </td>
               </tr>
+                );
+              })()
             ))}
           </tbody>
         </table>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { isValidVendor } from '@/lib/vendors';
 import { buildUpstreamRequest } from '@/lib/proxy';
+import { extractTokenUsage, estimateCostUsd, safeModelFromBody } from '@/lib/billing';
 
 type RouteContext = {
   params: Promise<{ vendor: string }>;
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const rawBody = await req.text();
+    const model = safeModelFromBody(rawBody);
     const upstream = buildUpstreamRequest(vendor, masterKey, rawBody);
 
     const response = await fetch(upstream.url, {
@@ -72,10 +74,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (response.ok) {
       const now = new Date().toISOString();
+
+      const tokenUsage = extractTokenUsage(vendor, data as Record<string, unknown>);
+      const inputInc = tokenUsage?.inputTokens ?? 0;
+      const outputInc = tokenUsage?.outputTokens ?? 0;
+      const costInc = tokenUsage ? estimateCostUsd(model, tokenUsage) : 0;
+
       const updated = {
         ...keyData,
         usage: ((keyData as { usage?: number }).usage || 0) + 1,
         lastUsed: now,
+        inputTokens: ((keyData as { inputTokens?: number }).inputTokens || 0) + inputInc,
+        outputTokens: ((keyData as { outputTokens?: number }).outputTokens || 0) + outputInc,
+        costUsd: ((keyData as { costUsd?: number }).costUsd || 0) + costInc,
       };
       await redis.hset('vault:subkeys', { [subKey]: JSON.stringify(updated) });
     }

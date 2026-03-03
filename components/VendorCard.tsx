@@ -29,6 +29,25 @@ export function VendorCard({ vendor }: VendorCardProps) {
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
 
+  const summary = keys.reduce(
+    (acc, k) => {
+      acc.calls += k.usage || 0;
+      acc.inputTokens += k.inputTokens || 0;
+      acc.outputTokens += k.outputTokens || 0;
+      acc.costUsd += k.costUsd || 0;
+      return acc;
+    },
+    { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
+  );
+
+  const totalTokens = summary.inputTokens + summary.outputTokens;
+  const formatUsd = (n: number) => {
+    if (!Number.isFinite(n)) return '—';
+    if (n === 0) return '$0.00';
+    if (n < 0.01) return '<$0.01';
+    return `$${n.toFixed(2)}`;
+  };
+
   const loadGroups = useCallback(async () => {
     try {
       const res = await fetch(`/api/v1/manage/groups?vendor=${vendor}`);
@@ -121,7 +140,25 @@ export function VendorCard({ vendor }: VendorCardProps) {
         ) : loadingKeys ? (
           <div className="text-center py-6 text-sm text-black/30">{t.common.loading}</div>
         ) : (
-          <KeyTable keys={keys} onDeleted={loadKeys} />
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">{t.vendorCard.summaryUsage}</div>
+                <div className="text-sm font-semibold font-mono mt-1">{summary.calls.toLocaleString()}</div>
+              </div>
+              <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">{t.vendorCard.summaryTokens}</div>
+                <div className="text-sm font-semibold font-mono mt-1">{totalTokens ? totalTokens.toLocaleString() : '—'}</div>
+              </div>
+              <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">{t.vendorCard.summaryCost}</div>
+                <div className="text-sm font-semibold font-mono mt-1">
+                  {keys.some(k => k.costUsd != null) ? formatUsd(summary.costUsd) : '—'}
+                </div>
+              </div>
+            </div>
+            <KeyTable keys={keys} onDeleted={loadKeys} />
+          </div>
         )}
       </div>
     </div>
