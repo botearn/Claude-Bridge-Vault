@@ -5,6 +5,7 @@ import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { VendorId, SubKeyData } from '@/lib/types';
 import { KeyTable } from './KeyTable';
 import { useLang } from './LangContext';
+import { onVaultSync } from '@/lib/vaultSync';
 
 interface KeyRow extends SubKeyData {
   key: string;
@@ -65,6 +66,15 @@ export function VendorCard({ vendor }: VendorCardProps) {
 
   useEffect(() => { loadGroups(); }, [vendor]);
   useEffect(() => { if (activeGroup) loadKeys(); }, [activeGroup]);
+
+  useEffect(() => {
+    const off = onVaultSync((payload) => {
+      if (payload.vendor && payload.vendor !== vendor) return;
+      loadGroups();
+      if (activeGroup) loadKeys();
+    });
+    return off;
+  }, [vendor, activeGroup, loadGroups, loadKeys]);
 
   return (
     <div className="border border-black/10 rounded-2xl bg-white/90 shadow-sm shadow-black/5 overflow-hidden">

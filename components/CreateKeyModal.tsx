@@ -6,6 +6,7 @@ import { VENDOR_CONFIG, isValidVendor } from '@/lib/vendors';
 import type { VendorId } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
 import { useLang } from './LangContext';
+import { emitVaultSync } from '@/lib/vaultSync';
 
 interface GroupOption {
   key: string;
@@ -70,6 +71,7 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
       setNewGroupId('');
       setNewGroupLabel('');
       setCreatingGroup(false);
+      emitVaultSync({ source: 'create-group', vendor, group: newGroupId.trim() });
     } catch {
       setError(t.createKeyModal.errorNetworkGroup);
     }
@@ -97,6 +99,7 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
         return;
       }
       setCreatedKey(data.subKey);
+      emitVaultSync({ source: 'create-key', vendor, group });
       onCreated();
     } catch {
       setError(t.createKeyModal.errorNetwork);

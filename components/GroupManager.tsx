@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Plus, Trash2, X, Pencil, Check } from 'lucide-react';
 import type { VendorId } from '@/lib/types';
 import { useLang } from './LangContext';
+import { emitVaultSync } from '@/lib/vaultSync';
 
 interface GroupOption {
   hashKey: string;
@@ -39,6 +40,7 @@ export function GroupManager({ vendor, groups, onGroupsChanged }: GroupManagerPr
         setNewLabel('');
         setAdding(false);
         onGroupsChanged();
+        emitVaultSync({ source: 'group-add', vendor, group: groupId.trim() });
       }
     } finally {
       setLoading(false);
@@ -59,6 +61,7 @@ export function GroupManager({ vendor, groups, onGroupsChanged }: GroupManagerPr
     });
     setEditingKey(null);
     onGroupsChanged();
+    emitVaultSync({ source: 'group-edit', vendor, group: hashKey.split(':')[1] || hashKey });
   };
 
   const handleDelete = async (hashKey: string) => {
@@ -69,6 +72,7 @@ export function GroupManager({ vendor, groups, onGroupsChanged }: GroupManagerPr
       body: JSON.stringify({ key: hashKey }),
     });
     onGroupsChanged();
+    emitVaultSync({ source: 'group-delete', vendor, group: hashKey.split(':')[1] || hashKey });
   };
 
   return (

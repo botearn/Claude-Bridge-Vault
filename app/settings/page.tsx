@@ -6,6 +6,7 @@ import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { SubKeyData, VendorId } from '@/lib/types';
 import { useLang, LangToggle } from '@/components/LangContext';
 import { GroupManager } from '@/components/GroupManager';
+import { emitVaultSync, onVaultSync } from '@/lib/vaultSync';
 
 interface KeyRow extends SubKeyData { key: string; }
 interface GroupOption { hashKey: string; label: string; }
@@ -51,6 +52,7 @@ function KeySettingsRow({
     setSaving(false);
     setEditing(false);
     onSaved();
+    emitVaultSync({ source: 'key-edit', vendor: row.vendor, group: form.group, subKey: row.key });
   };
 
   const handleDelete = async () => {
@@ -61,6 +63,7 @@ function KeySettingsRow({
       body: JSON.stringify({ subKey: row.key }),
     });
     onDeleted();
+    emitVaultSync({ source: 'key-delete', vendor: row.vendor, group: row.group, subKey: row.key });
   };
 
   const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - row.usage) : null;
@@ -226,6 +229,15 @@ export default function SettingsPage() {
   }, [vendorFilter]);
 
   useEffect(() => { loadKeys(); loadGroups(); }, [loadKeys, loadGroups]);
+
+  useEffect(() => {
+    const off = onVaultSync((payload) => {
+      if (vendorFilter !== 'all' && payload.vendor && payload.vendor !== vendorFilter) return;
+      loadKeys();
+      loadGroups();
+    });
+    return off;
+  }, [vendorFilter, loadKeys, loadGroups]);
 
   // When vendor changes, reset to keys view
   const handleVendorChange = (v: string) => {

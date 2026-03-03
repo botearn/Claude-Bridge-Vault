@@ -5,6 +5,7 @@ import { Copy, Check, Trash2, Share2 } from 'lucide-react';
 import type { SubKeyData } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
 import { useLang } from './LangContext';
+import { emitVaultSync } from '@/lib/vaultSync';
 
 interface KeyRow extends SubKeyData {
   key: string;
@@ -50,6 +51,7 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
         body: JSON.stringify({ subKey: key }),
       });
       onDeleted();
+      emitVaultSync({ source: 'key-delete', subKey: key });
     } finally {
       setDeletingKey(null);
     }
