@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { isValidVendor } from '@/lib/vendors';
 import { buildUpstreamRequest } from '@/lib/proxy';
-import { extractTokenUsage, estimateCostUsd, safeModelFromBody } from '@/lib/billing';
+import { extractTokenUsage, estimateVendorCostUsd, safeModelFromBody } from '@/lib/billing';
 
 type RouteContext = {
   params: Promise<{ vendor: string }>;
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       const tokenUsage = extractTokenUsage(vendor, data as Record<string, unknown>);
       const inputInc = tokenUsage?.inputTokens ?? 0;
       const outputInc = tokenUsage?.outputTokens ?? 0;
-      const costInc = tokenUsage ? estimateCostUsd(model, tokenUsage) : 0;
+      const costInc = tokenUsage ? estimateVendorCostUsd(vendor, model, tokenUsage) : 0;
 
       const updated = {
         ...keyData,

@@ -6,6 +6,7 @@ import type { VendorId, SubKeyData } from '@/lib/types';
 import { KeyTable } from './KeyTable';
 import { useLang } from './LangContext';
 import { onVaultSync } from '@/lib/vaultSync';
+import { estimateClaudeOfficialCostUsd } from '@/lib/billing';
 
 interface KeyRow extends SubKeyData {
   key: string;
@@ -41,6 +42,14 @@ export function VendorCard({ vendor }: VendorCardProps) {
   );
 
   const totalTokens = summary.inputTokens + summary.outputTokens;
+  const claudeOfficialCostUsd = estimateClaudeOfficialCostUsd(undefined, {
+    inputTokens: summary.inputTokens,
+    outputTokens: summary.outputTokens,
+  });
+
+  const YOURAGENT_BUDGET_USD = 20;
+  const budgetRemainingUsd = Math.max(0, YOURAGENT_BUDGET_USD - summary.costUsd);
+  const diffUsd = claudeOfficialCostUsd - summary.costUsd;
   const formatUsd = (n: number) => {
     if (!Number.isFinite(n)) return '—';
     if (n === 0) return '$0.00';
@@ -157,6 +166,19 @@ export function VendorCard({ vendor }: VendorCardProps) {
                 </div>
               </div>
             </div>
+
+            {vendor === 'youragent' && (
+              <div className="border border-black/10 rounded-xl p-3 bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-black/50 font-mono">
+                  <span className="font-semibold text-black/60">{t.vendorCard.budgetLabel} ${YOURAGENT_BUDGET_USD.toFixed(0)}</span>
+                  <span>{t.vendorCard.budgetUsed}: {formatUsd(summary.costUsd)}</span>
+                  <span>{t.vendorCard.budgetRemaining}: {formatUsd(budgetRemainingUsd)}</span>
+                  <span>{t.vendorCard.claudeOfficial}: {formatUsd(claudeOfficialCostUsd)}</span>
+                  <span>{t.vendorCard.savings}: {formatUsd(diffUsd)}</span>
+                </div>
+              </div>
+            )}
+
             <KeyTable keys={keys} onDeleted={loadKeys} />
           </div>
         )}

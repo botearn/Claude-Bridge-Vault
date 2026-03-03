@@ -49,7 +49,8 @@ export function extractTokenUsage(vendor: VendorId, data: UsageLike): TokenUsage
 }
 
 // Price table is a best-effort estimate (USD per 1M tokens)
-const PRICES_PER_MILLION: Record<string, { input: number; output: number }> = {
+// NOTE: keep this as a lightweight internal reference; update if you want exact vendor pricing.
+const CLAUDE_OFFICIAL_PRICES_PER_MILLION: Record<string, { input: number; output: number }> = {
   // Anthropic examples
   'claude-3-5-sonnet-latest': { input: 3.0, output: 15.0 },
   'claude-3-5-haiku-latest': { input: 0.25, output: 1.25 },
@@ -59,11 +60,31 @@ const PRICES_PER_MILLION: Record<string, { input: number; output: number }> = {
   __default__: { input: 3.0, output: 15.0 },
 };
 
-export function estimateCostUsd(model: string | undefined, usage: TokenUsage): number {
-  const price = (model && PRICES_PER_MILLION[model]) ? PRICES_PER_MILLION[model] : PRICES_PER_MILLION.__default__;
+// YourAgent pricing rule: same token usage costs 4% of official Claude.
+const YOURAGENT_PRICE_MULTIPLIER = 0.04;
+
+export function estimateClaudeOfficialCostUsd(model: string | undefined, usage: TokenUsage): number {
+  const price = (model && CLAUDE_OFFICIAL_PRICES_PER_MILLION[model])
+    ? CLAUDE_OFFICIAL_PRICES_PER_MILLION[model]
+    : CLAUDE_OFFICIAL_PRICES_PER_MILLION.__default__;
+
   const inputCost = (usage.inputTokens / 1_000_000) * price.input;
   const outputCost = (usage.outputTokens / 1_000_000) * price.output;
   return inputCost + outputCost;
+}
+
+export function estimateVendorCostUsd(vendor: VendorId, model: string | undefined, usage: TokenUsage): number {
+  if (vendor === 'youragent') {
+    return estimateClaudeOfficialCostUsd(model, usage) * YOURAGENT_PRICE_MULTIPLIER;
+  }
+
+  if (vendor === 'claude') {
+    return estimateClaudeOfficialCostUsd(model, usage);
+  }
+
+  // For other vendors, we currently don't have a strict official price table here.
+  // Fall back to Claude official pricing as a neutral estimate.
+  return estimateClaudeOfficialCostUsd(model, usage);
 }
 
 export function safeModelFromBody(rawBody: string): string | undefined {

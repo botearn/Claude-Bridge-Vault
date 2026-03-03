@@ -32,6 +32,8 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
   const [loading, setLoading] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedCurl, setCopiedCurl] = useState(false);
 
   useEffect(() => {
     loadGroups(vendor);
@@ -50,6 +52,35 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
     } catch {
       setGroups([]);
     }
+  };
+
+  const buildCurlSnippet = (subKey: string, v: VendorId) => {
+    const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + VENDOR_CONFIG[v].basePath;
+
+    if (v === 'openai') {
+      return `curl ${baseUrl} \\\n+  -H "Authorization: Bearer ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`;
+    }
+
+    if (v === 'gemini') {
+      return `curl ${baseUrl} \\\n+  -H "x-api-key: ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"model":"gemini-pro","contents":[{"parts":[{"text":"Hello"}]}]}'`;
+    }
+
+    return `curl ${baseUrl} \\\n+  -H "x-api-key: ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -H "anthropic-version: 2023-06-01" \\\n+  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
+  };
+
+  const handleCopyKey = async () => {
+    if (!createdKey) return;
+    await navigator.clipboard.writeText(createdKey);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const handleCopyCurl = async () => {
+    if (!createdKey) return;
+    const snippet = buildCurlSnippet(createdKey, vendor);
+    await navigator.clipboard.writeText(snippet);
+    setCopiedCurl(true);
+    setTimeout(() => setCopiedCurl(false), 2000);
   };
 
   const handleCreateGroup = async () => {
@@ -121,6 +152,22 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
         {createdKey ? (
           <div className="space-y-4">
             <div className="text-sm text-black/60 mb-2">{t.createKeyModal.keyCreated}</div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleCopyKey}
+                className="py-2.5 border border-black rounded-lg text-sm font-semibold hover:bg-black hover:text-white transition-colors"
+              >
+                {copiedKey ? t.createKeyModal.copied : t.createKeyModal.copyKey}
+              </button>
+              <button
+                onClick={handleCopyCurl}
+                className="py-2.5 border border-black/20 rounded-lg text-sm font-semibold hover:bg-black hover:text-white hover:border-black transition-colors"
+              >
+                {copiedCurl ? t.createKeyModal.copied : t.createKeyModal.copyCurl}
+              </button>
+            </div>
+
             <ShareSnippet subKey={createdKey} vendor={vendor} />
             <button
               onClick={onClose}
