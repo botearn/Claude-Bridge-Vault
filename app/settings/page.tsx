@@ -306,6 +306,7 @@ export default function SettingsPage() {
           <button
             onClick={() => setView('groups')}
             disabled={vendorFilter === 'all'}
+            title={vendorFilter === 'all' ? s.selectVendorForGroups : undefined}
             className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px disabled:opacity-30 disabled:cursor-not-allowed ${
               view === 'groups'
                 ? 'border-black text-black'
