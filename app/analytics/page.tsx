@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             >
               <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
             </button>
-            <a href="/" className="text-xs text-black/40 hover:text-black transition-colors flex items-center gap-1">
+            <a href="/vault" className="text-xs text-black/40 hover:text-black transition-colors flex items-center gap-1">
               <ArrowLeft size={12} /> {a.back.replace('← ', '')}
             </a>
           </div>

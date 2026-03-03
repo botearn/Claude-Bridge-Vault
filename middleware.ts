@@ -33,7 +33,7 @@ export const config = {
     // Protect all manage API endpoints
     '/api/v1/manage/:path*',
     // Protect dashboard pages (not /login, not /api/auth/*)
-    '/',
+    '/vault',
     '/query',
     '/settings',
     '/analytics',

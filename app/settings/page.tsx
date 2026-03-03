@@ -274,7 +274,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center gap-3">
             <LangToggle />
-            <a href="/" className="text-xs text-black/40 hover:text-black transition-colors">{s.back}</a>
+            <a href="/vault" className="text-xs text-black/40 hover:text-black transition-colors">{s.back}</a>
           </div>
         </header>
 
@@ -339,7 +339,7 @@ export default function SettingsPage() {
           ) : keys.length === 0 ? (
             <div className="text-center py-12 border border-black/10 rounded-2xl bg-white">
               <p className="text-sm text-black/30 mb-4">{s.noKeys}</p>
-              <a href="/" className="inline-flex items-center gap-1.5 text-xs font-semibold border border-black px-4 py-2 rounded-lg hover:bg-black hover:text-white transition-colors">
+              <a href="/vault" className="inline-flex items-center gap-1.5 text-xs font-semibold border border-black px-4 py-2 rounded-lg hover:bg-black hover:text-white transition-colors">
                 <Plus size={12} /> {s.createKey}
               </a>
             </div>

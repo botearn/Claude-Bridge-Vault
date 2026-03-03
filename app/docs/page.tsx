@@ -42,7 +42,7 @@ export default function DocsPage() {
           </div>
           <div className="flex items-center gap-3">
             <LangToggle />
-            <a href="/" className="text-xs text-black/40 hover:text-black transition-colors">{d.back}</a>
+            <a href="/vault" className="text-xs text-black/40 hover:text-black transition-colors">{d.back}</a>
           </div>
         </header>
 
