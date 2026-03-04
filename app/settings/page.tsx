@@ -66,7 +66,8 @@ function KeySettingsRow({
     emitVaultSync({ source: 'key-delete', vendor: row.vendor, group: row.group, subKey: row.key });
   };
 
-  const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - row.usage) : null;
+  const usedTokens = (row.inputTokens || 0) + (row.outputTokens || 0);
+  const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - usedTokens) : null;
 
   return (
     <div className="border border-black/10 rounded-xl bg-white overflow-hidden">
@@ -91,11 +92,11 @@ function KeySettingsRow({
       </div>
 
       <div className="flex items-center gap-4 px-4 pb-3 text-[11px] text-black/40 font-mono border-t border-black/5 pt-2">
-        <span>{row.usage} {s.used}</span>
+        <span>{row.usage} {s.calls}</span>
         <span>·</span>
         <span>
           {row.totalQuota != null
-            ? `${remaining} ${s.remaining} / ${row.totalQuota} ${s.total}`
+            ? `${usedTokens.toLocaleString()} ${s.used} · ${remaining!.toLocaleString()} ${s.remaining} / ${row.totalQuota.toLocaleString()} ${s.total}`
             : s.unlimitedQuota}
         </span>
         <span>·</span>
