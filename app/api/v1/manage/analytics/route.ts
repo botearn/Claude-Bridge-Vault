@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { fetchYASync, getYASync } from '@/lib/youragent-sync';
 import type { SubKeyData } from '@/lib/types';
 
 function parseSafe(v: unknown): SubKeyData | null {
@@ -86,10 +87,31 @@ export async function GET() {
     });
   }
 
+  const yaSync = await getYASync();
+
   return NextResponse.json({
     summary: { totalCalls, totalTokens: totalInputTokens + totalOutputTokens, totalCostUsd, activeKeys: keys.length, keysNearQuota, expiringKeys },
     byVendor,
     keyHealth,
     dailyCalls,
+    youragentSync: yaSync,
   }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+// POST ?action=sync-youragent — trigger real data sync from your-agent.cc
+export async function POST(req: Request) {
+  const url = new URL(req.url);
+  if (url.searchParams.get('action') !== 'sync-youragent') {
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  }
+  const masterKey = process.env.YOURAGENT_MASTER_KEY?.split(',')[0].trim();
+  if (!masterKey) {
+    return NextResponse.json({ error: 'YOURAGENT_MASTER_KEY not configured' }, { status: 500 });
+  }
+  try {
+    const data = await fetchYASync(masterKey);
+    return NextResponse.json({ ok: true, syncedAt: data.syncedAt, totalCost: data.keyInfo.totalCost, totalTokens: data.total.allTokens });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 502 });
+  }
 }

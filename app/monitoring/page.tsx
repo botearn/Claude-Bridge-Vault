@@ -111,10 +111,13 @@ export default function MonitoringPage() {
     try {
       const [monRes, yaRes] = await Promise.all([
         fetch(`/api/v1/manage/monitor?group=${encodeURIComponent(g)}`),
-        fetch('/api/v1/manage/youragent-sync'),
+        fetch('/api/v1/manage/analytics'),
       ]);
       if (monRes.ok) setData(await monRes.json());
-      if (yaRes.ok) setYaSync(await yaRes.json());
+      if (yaRes.ok) {
+        const d = await yaRes.json();
+        if (d.youragentSync) setYaSync(d.youragentSync);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,10 +127,13 @@ export default function MonitoringPage() {
   const triggerSync = useCallback(async () => {
     setSyncing(true);
     try {
-      const res = await fetch('/api/v1/manage/youragent-sync', { method: 'POST' });
+      const res = await fetch('/api/v1/manage/analytics?action=sync-youragent', { method: 'POST' });
       if (res.ok) {
-        const yaRes = await fetch('/api/v1/manage/youragent-sync');
-        if (yaRes.ok) setYaSync(await yaRes.json());
+        const yaRes = await fetch('/api/v1/manage/analytics');
+        if (yaRes.ok) {
+          const d = await yaRes.json();
+          if (d.youragentSync) setYaSync(d.youragentSync);
+        }
       }
     } finally {
       setSyncing(false);
