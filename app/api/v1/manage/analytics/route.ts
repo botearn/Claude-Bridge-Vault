@@ -87,7 +87,13 @@ export async function GET() {
     });
   }
 
-  const yaSync = await getYASync();
+  let yaSync = null;
+  try {
+    const yaRaw = await redis.get('vault:youragent:sync');
+    if (yaRaw) {
+      yaSync = typeof yaRaw === 'string' ? JSON.parse(yaRaw) : yaRaw;
+    }
+  } catch { /* ignore */ }
 
   return NextResponse.json({
     summary: { totalCalls, totalTokens: totalInputTokens + totalOutputTokens, totalCostUsd, activeKeys: keys.length, keysNearQuota, expiringKeys },
