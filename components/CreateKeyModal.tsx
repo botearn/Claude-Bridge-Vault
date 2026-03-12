@@ -58,14 +58,14 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
     const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + VENDOR_CONFIG[v].basePath;
 
     if (v === 'openai' || v === 'yunwu') {
-      return `curl ${baseUrl} \\\n+  -H "Authorization: Bearer ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`;
+      return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`;
     }
 
     if (v === 'gemini') {
-      return `curl ${baseUrl} \\\n+  -H "x-api-key: ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"model":"gemini-pro","contents":[{"parts":[{"text":"Hello"}]}]}'`;
+      return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gemini-pro","contents":[{"parts":[{"text":"Hello"}]}]}'`;
     }
 
-    return `curl ${baseUrl} \\\n+  -H "x-api-key: ${subKey}" \\\n+  -H "Content-Type: application/json" \\\n+  -H "anthropic-version: 2023-06-01" \\\n+  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
+    return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
   };
 
   const handleCopyKey = async () => {
