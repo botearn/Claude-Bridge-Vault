@@ -227,7 +227,10 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
                   <span>{t.vendorCard.budgetUsed}: {formatUsd(summary.costUsd)}</span>
                   <span>{t.vendorCard.budgetRemaining}: {formatUsd(budgetRemainingUsd)}</span>
                   <span>{t.vendorCard.claudeOfficial}: {formatUsd(claudeOfficialCostUsd)}</span>
-                  <span>{t.vendorCard.savings}: {formatUsd(diffUsd)}</span>
+                  <span className="text-green-600">{t.vendorCard.savings}: {formatUsd(diffUsd)}</span>
+                </div>
+                <div className="text-[10px] text-black/30 mt-2 leading-relaxed">
+                  {t.vendorCard.costNote}
                 </div>
               </div>
             )}
