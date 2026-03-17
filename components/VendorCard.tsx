@@ -201,9 +201,10 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
             </div>
 
             {vendor === 'youragent' && (
-              <div className="border border-black/10 rounded-xl p-3 bg-white">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-black/50 font-mono">
-                  <span className="font-semibold text-black/60 flex items-center gap-1">
+              <div className="border border-black/10 rounded-xl overflow-hidden">
+                {/* Budget header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-black/[0.03] border-b border-black/5">
+                  <span className="text-[11px] font-semibold text-black/60 flex items-center gap-1.5">
                     {t.vendorCard.budgetLabel}{' '}
                     {editingBudget ? (
                       <>
@@ -224,13 +225,28 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
                       </>
                     )}
                   </span>
-                  <span>{t.vendorCard.budgetUsed}: {formatUsd(summary.costUsd)}</span>
-                  <span>{t.vendorCard.budgetRemaining}: {formatUsd(budgetRemainingUsd)}</span>
-                  <span>{t.vendorCard.claudeOfficial}: {formatUsd(claudeOfficialCostUsd)}</span>
-                  <span className="text-green-600">{t.vendorCard.savings}: {formatUsd(diffUsd)}</span>
+                  <span className="text-[11px] text-black/40 font-mono">{t.vendorCard.budgetRemaining}: {formatUsd(budgetRemainingUsd)}</span>
                 </div>
-                <div className="text-[10px] text-black/30 mt-2 leading-relaxed">
-                  {t.vendorCard.costNote}
+
+                {/* Cost comparison grid */}
+                <div className="grid grid-cols-3 divide-x divide-black/5">
+                  <div className="px-4 py-3 text-center">
+                    <div className="text-[10px] uppercase tracking-widest text-black/40 mb-1">{t.vendorCard.budgetUsed}</div>
+                    <div className="text-lg font-bold font-mono tabular-nums">{formatUsd(summary.costUsd)}</div>
+                  </div>
+                  <div className="px-4 py-3 text-center">
+                    <div className="text-[10px] uppercase tracking-widest text-black/40 mb-1">{t.vendorCard.claudeOfficial}</div>
+                    <div className="text-lg font-mono tabular-nums text-black/40 line-through">{formatUsd(claudeOfficialCostUsd)}</div>
+                  </div>
+                  <div className="px-4 py-3 text-center bg-green-50/50">
+                    <div className="text-[10px] uppercase tracking-widest text-green-600 mb-1">{t.vendorCard.savings}</div>
+                    <div className="text-lg font-bold font-mono tabular-nums text-green-600">{formatUsd(diffUsd)}</div>
+                  </div>
+                </div>
+
+                {/* Explanation */}
+                <div className="px-4 py-2 bg-black/[0.02] border-t border-black/5">
+                  <p className="text-[10px] text-black/35 leading-relaxed">{t.vendorCard.costNote}</p>
                 </div>
               </div>
             )}
