@@ -38,18 +38,29 @@ export function extractTokenUsage(vendor: VendorId, data: UsageLike): TokenUsage
 }
 
 // Price tables: best-effort estimates (USD per 1M tokens)
-// Grouped by vendor so each vendor resolves its own pricing before falling back.
+// All costs are in USD. These are official API list prices, NOT actual billed amounts.
+// - Claude: Anthropic official pricing
+// - YourAgent: Claude official × 4% (YOURAGENT_PRICE_MULTIPLIER) — update if pricing changes
+// - Yunwu: OpenAI official pricing — TODO: update to Yunwu's actual reseller pricing when available
 
 const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
-  'claude-3-5-sonnet-latest':  { input: 3.0,   output: 15.0  },
-  'claude-3-5-sonnet-20241022':{ input: 3.0,   output: 15.0  },
-  'claude-sonnet-4-20250514':  { input: 3.0,   output: 15.0  },
-  'claude-3-5-haiku-latest':   { input: 0.80,  output: 4.0   },
-  'claude-3-5-haiku-20241022': { input: 0.80,  output: 4.0   },
-  'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.0   },
+  // Opus 4.6 / 4
+  'claude-opus-4-6':           { input: 15.0,  output: 75.0  },
+  'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
   'claude-3-opus-latest':      { input: 15.0,  output: 75.0  },
   'claude-3-opus-20240229':    { input: 15.0,  output: 75.0  },
-  'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
+  // Sonnet 4.6 / 4 / 3.5
+  'claude-sonnet-4-6':         { input: 3.0,   output: 15.0  },
+  'claude-sonnet-4-20250514':  { input: 3.0,   output: 15.0  },
+  'claude-3-5-sonnet-latest':  { input: 3.0,   output: 15.0  },
+  'claude-3-5-sonnet-20241022':{ input: 3.0,   output: 15.0  },
+  // Haiku 4.5 / 3.5
+  'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.0   },
+  'claude-3-5-haiku-latest':   { input: 0.80,  output: 4.0   },
+  'claude-3-5-haiku-20241022': { input: 0.80,  output: 4.0   },
+  // Thinking variants (same price as base model)
+  'claude-opus-4-6-thinking':  { input: 15.0,  output: 75.0  },
+  'claude-sonnet-4-6-thinking':{ input: 3.0,   output: 15.0  },
   __default__:                 { input: 3.0,   output: 15.0  },
 };
 

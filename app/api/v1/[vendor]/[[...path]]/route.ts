@@ -6,6 +6,7 @@ import { extractTokenUsage, estimateVendorCostUsd, safeModelFromBody } from '@/l
 import { logEvent } from '@/lib/events';
 import { proxyRateLimit } from '@/lib/ratelimit';
 import { notify } from '@/lib/webhook';
+import { recordDailyKeyUsage } from '@/lib/daily-stats';
 
 type RouteContext = {
   params: Promise<{ vendor: string; path?: string[] }>;
@@ -238,6 +239,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             costUsd: (lk.costUsd ?? 0) + costInc,
           }),
         });
+        void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
       });
 
       const headers = new Headers();
@@ -265,6 +267,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         costUsd: (lk.costUsd ?? 0) + costInc,
       }),
     });
+    void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {

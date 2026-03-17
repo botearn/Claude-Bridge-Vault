@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings, Pencil, Trash2, Check, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Pencil, Trash2, Check, X, Plus, ChevronDown, ChevronUp, Lock, Globe } from 'lucide-react';
 import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { SubKeyData, VendorId, KeyScope } from '@/lib/types';
 import { useLang, LangToggle } from '@/components/LangContext';
@@ -70,7 +70,7 @@ function KeySettingsRow({
   const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - usedTokens) : null;
 
   return (
-    <div className="border border-[var(--border)] rounded-xl bg-white overflow-hidden">
+    <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
           <span className={`text-[10px] rounded-full px-2 py-px uppercase tracking-wider flex-shrink-0 ${
@@ -132,7 +132,7 @@ function KeySettingsRow({
               <select
                 value={form.group}
                 onChange={e => setForm(f => ({ ...f, group: e.target.value }))}
-                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30 bg-white"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30 bg-[var(--surface)]"
               >
                 {groups.map(g => (
                   <option key={g.hashKey} value={g.hashKey.split(':')[1] || g.hashKey}>
@@ -286,20 +286,31 @@ export default function SettingsPage() {
         </header>
 
         {/* Scope toggle */}
-        <div className="flex items-center gap-1 mb-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit">
-          {(['internal', 'external'] as KeyScope[]).map((sc) => (
-            <button
-              key={sc}
-              onClick={() => setScopeFilter(sc)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                scopeFilter === sc
-                  ? 'bg-black text-white'
-                  : 'text-black/50 hover:text-black hover:bg-black/5'
-              }`}
-            >
-              {sc === 'internal' ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1">
+            {(['internal', 'external'] as KeyScope[]).map((sc) => {
+              const isInternal = sc === 'internal';
+              return (
+                <button
+                  key={sc}
+                  onClick={() => setScopeFilter(sc)}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    scopeFilter === sc
+                      ? isInternal
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-amber-600 text-white'
+                      : 'text-black/50 hover:text-black hover:bg-black/5'
+                  }`}
+                >
+                  {isInternal ? <Lock size={12} /> : <Globe size={12} />}
+                  {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-[11px] text-black/40">
+            {scopeFilter === 'internal' ? t.dashboard.scopeInternalDesc : t.dashboard.scopeExternalDesc}
+          </span>
         </div>
 
         {/* Vendor filter */}
@@ -311,7 +322,7 @@ export default function SettingsPage() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 vendorFilter === v
                   ? 'bg-black text-white border-black'
-                  : 'border-[var(--border)] text-black/50 hover:text-black hover:border-black/20 bg-white'
+                  : 'border-[var(--border)] text-black/50 hover:text-black hover:border-black/20 bg-[var(--surface)]'
               }`}
             >
               {v === 'all' ? s.allVendors : VENDOR_CONFIG[v as VendorId].label}
@@ -363,7 +374,7 @@ export default function SettingsPage() {
           loading ? (
             <div className="text-center py-12 text-sm text-black/30">{t.common.loading}</div>
           ) : keys.length === 0 ? (
-            <div className="text-center py-12 border border-[var(--border)] rounded-[var(--radius-xl)] bg-white">
+            <div className="text-center py-12 border border-[var(--border)] rounded-[var(--radius-xl)] bg-[var(--surface)]">
               <p className="text-sm text-black/30 mb-4">{s.noKeys}</p>
               <a href="/vault" className="inline-flex items-center gap-1.5 text-xs font-semibold border border-black px-4 py-2 rounded-lg hover:bg-black hover:text-white transition-colors">
                 <Plus size={12} /> {s.createKey}

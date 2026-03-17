@@ -121,52 +121,59 @@ export default function VaultDashboard() {
         </div>
 
         {/* Scope Toggle + Vendor Rail */}
-        <div className="flex items-center gap-4 mb-6">
-          {/* Scope */}
-          <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-0.5">
-            {(['internal', 'external'] as KeyScope[]).map((s) => {
-              const active = activeScope === s;
-              const isInternal = s === 'internal';
-              return (
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center gap-4">
+            {/* Scope */}
+            <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-0.5">
+              {(['internal', 'external'] as KeyScope[]).map((s) => {
+                const active = activeScope === s;
+                const isInternal = s === 'internal';
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setActiveScope(s)}
+                    className={`focus-ring flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium rounded-[7px] transition-all duration-[var(--duration-normal)] ease-out-expo ${
+                      active
+                        ? isInternal
+                          ? 'bg-[var(--scope-internal)] text-white shadow-sm'
+                          : 'bg-[var(--scope-external)] text-white shadow-sm'
+                        : 'text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    {isInternal ? <Lock size={12} /> : <Globe size={12} />}
+                    {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Scope description */}
+            <span className="text-[11px] text-[var(--text-4)]">
+              {activeScope === 'internal' ? t.dashboard.scopeInternalDesc : t.dashboard.scopeExternalDesc}
+            </span>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-[var(--border)] ml-auto" />
+
+            {/* Vendor Rail */}
+            <div className="flex gap-1.5">
+              {VENDORS.map((v) => (
                 <button
-                  key={s}
-                  onClick={() => setActiveScope(s)}
-                  className={`focus-ring flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium rounded-[7px] transition-all duration-[var(--duration-normal)] ease-out-expo ${
-                    active
-                      ? isInternal
-                        ? 'bg-[var(--scope-internal)] text-white shadow-sm'
-                        : 'bg-[var(--scope-external)] text-white shadow-sm'
-                      : 'text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--surface-hover)]'
+                  key={v}
+                  onClick={() => setActiveVendor(v)}
+                  className={`focus-ring flex items-center gap-2 px-3.5 py-2 rounded-[var(--radius-md)] text-[13px] font-medium transition-all duration-[var(--duration-normal)] ease-out-expo border ${
+                    activeVendor === v
+                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-transparent shadow-sm'
+                      : 'border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] bg-[var(--surface)]'
                   }`}
                 >
-                  {isInternal ? <Lock size={12} /> : <Globe size={12} />}
-                  {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
+                  <span>{VENDOR_CONFIG[v].label}</span>
+                  <span className={`text-[10px] font-mono ${activeVendor === v ? 'text-white/40' : 'text-[var(--text-4)]'}`}>
+                    {VENDOR_CONFIG[v].keyPrefix}
+                  </span>
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-6 bg-[var(--border)]" />
-
-          {/* Vendor Rail */}
-          <div className="flex gap-1.5">
-            {VENDORS.map((v) => (
-              <button
-                key={v}
-                onClick={() => setActiveVendor(v)}
-                className={`focus-ring flex items-center gap-2 px-3.5 py-2 rounded-[var(--radius-md)] text-[13px] font-medium transition-all duration-[var(--duration-normal)] ease-out-expo border ${
-                  activeVendor === v
-                    ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-transparent shadow-sm'
-                    : 'border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] bg-[var(--surface)]'
-                }`}
-              >
-                <span>{VENDOR_CONFIG[v].label}</span>
-                <span className={`text-[10px] font-mono ${activeVendor === v ? 'text-white/40' : 'text-[var(--text-4)]'}`}>
-                  {VENDOR_CONFIG[v].keyPrefix}
-                </span>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 

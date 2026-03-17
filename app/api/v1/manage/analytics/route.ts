@@ -22,7 +22,7 @@ function last30Days(): string[] {
   return dates;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const dates = last30Days();
   const now = new Date();
 
@@ -98,12 +98,37 @@ export async function GET() {
     if (yaRaw) yaSync = typeof yaRaw === 'string' ? JSON.parse(yaRaw as string) : yaRaw;
   } catch { /* ignore */ }
 
+  // Optional: per-key daily breakdown
+  const url = new URL(req.url);
+  const wantDailyPerKey = url.searchParams.get('daily') === 'per-key';
+  const filterKey = url.searchParams.get('key');
+
+  let dailyKeyUsage = undefined;
+  if (wantDailyPerKey) {
+    const dailyHashes = await Promise.all(
+      dates.map(d => redis.hgetall<Record<string, string>>(`vault:daily:keys:${d}`).catch(() => null))
+    );
+    dailyKeyUsage = dates.map((date, i) => {
+      const hash = dailyHashes[i] ?? {};
+      const entries: { key: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[] = [];
+      for (const [k, v] of Object.entries(hash)) {
+        if (filterKey && k !== filterKey) continue;
+        try {
+          const parsed = typeof v === 'string' ? JSON.parse(v) : v;
+          entries.push({ key: k, ...parsed });
+        } catch { /* skip malformed */ }
+      }
+      return { date, keys: entries };
+    });
+  }
+
   return NextResponse.json({
     summary: { totalCalls, totalTokens: totalInputTokens + totalOutputTokens, totalCostUsd, activeKeys: keys.length, keysNearQuota, expiringKeys },
     byVendor,
     keyHealth,
     dailyCalls,
     youragentSync: yaSync,
+    ...(dailyKeyUsage ? { dailyKeyUsage } : {}),
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
 

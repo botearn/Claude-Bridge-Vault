@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart2, Zap, TrendingUp, Key, AlertTriangle, Clock,
-  ArrowLeft, RefreshCw, Activity,
+  ArrowLeft, RefreshCw, Activity, ChevronDown,
 } from 'lucide-react';
 import { useLang, LangToggle } from '@/components/LangContext';
 import { VENDOR_CONFIG } from '@/lib/vendors';
@@ -48,6 +48,19 @@ interface AnalyticsData {
   byVendor: Record<string, VendorStat>;
   keyHealth: KeyHealth[];
   dailyCalls: DailyPoint[];
+}
+
+interface DailyKeyEntry {
+  key: string;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+interface DailyKeyDay {
+  date: string;
+  keys: DailyKeyEntry[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -156,6 +169,10 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<7 | 30>(7);
   const [refreshing, setRefreshing] = useState(false);
+  const [dailyKey, setDailyKey] = useState<DailyKeyDay[] | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyFilter, setDailyFilter] = useState<string>('');
+  const [showDaily, setShowDaily] = useState(false);
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -166,6 +183,21 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadDaily = async (keyFilter?: string) => {
+    setDailyLoading(true);
+    try {
+      const params = new URLSearchParams({ daily: 'per-key' });
+      if (keyFilter) params.set('key', keyFilter);
+      const res = await fetch(`/api/v1/manage/analytics?${params}`);
+      if (res.ok) {
+        const d = await res.json();
+        setDailyKey(d.dailyKeyUsage ?? null);
+      }
+    } finally {
+      setDailyLoading(false);
     }
   };
 
@@ -324,7 +356,7 @@ export default function AnalyticsPage() {
             )
             : data?.keyHealth.length === 0
               ? (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-8 text-center text-sm text-black/30 shadow-sm">
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-8 text-center text-sm text-black/30 shadow-vault">
                   {a.noKeys}
                 </div>
               )
@@ -388,6 +420,88 @@ export default function AnalyticsPage() {
                 </div>
               )
           }
+        </div>
+
+        {/* Per-Key Daily Breakdown */}
+        <div className="mt-6 mb-2">
+          <button
+            onClick={() => {
+              const next = !showDaily;
+              setShowDaily(next);
+              if (next && !dailyKey) loadDaily(dailyFilter || undefined);
+            }}
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-black/40 hover:text-black transition-colors"
+          >
+            <ChevronDown size={12} className={`transition-transform ${showDaily ? 'rotate-180' : ''}`} />
+            {a.dailyBreakdown}
+          </button>
+
+          {showDaily && (
+            <div className="mt-3">
+              {/* Key filter */}
+              <div className="flex items-center gap-2 mb-3">
+                <select
+                  value={dailyFilter}
+                  onChange={(e) => {
+                    setDailyFilter(e.target.value);
+                    loadDaily(e.target.value || undefined);
+                  }}
+                  className="text-xs border border-black/10 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-black/30"
+                >
+                  <option value="">{a.selectKey}</option>
+                  {data?.keyHealth.map(k => (
+                    <option key={k.key} value={k.key}>{k.name} ({k.key.slice(-8)})</option>
+                  ))}
+                </select>
+              </div>
+
+              {dailyLoading ? (
+                <div className="text-center py-8 text-xs text-black/30">{a.loadingDaily}</div>
+              ) : !dailyKey || dailyKey.every(d => d.keys.length === 0) ? (
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-6 text-center text-xs text-black/30">
+                  {a.noDailyData}
+                </div>
+              ) : (
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] shadow-vault overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-black/5 text-black/40">
+                          <th className="text-left px-4 py-2.5 font-medium">{a.date}</th>
+                          <th className="text-left px-4 py-2.5 font-medium">{a.keyName}</th>
+                          <th className="text-right px-4 py-2.5 font-medium">{a.dailyCalls}</th>
+                          <th className="text-right px-4 py-2.5 font-medium">{a.dailyTokens}</th>
+                          <th className="text-right px-4 py-2.5 font-medium">{a.dailyCost}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dailyKey.filter(d => d.keys.length > 0).reverse().flatMap(d =>
+                          d.keys.map((k, i) => {
+                            const keyName = data?.keyHealth.find(h => h.key === k.key)?.name ?? k.key.slice(-12);
+                            return (
+                              <tr key={`${d.date}-${k.key}-${i}`} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
+                                <td className="px-4 py-2 text-black/50 font-mono">{shortDate(d.date)}</td>
+                                <td className="px-4 py-2">
+                                  <span className="font-medium">{keyName}</span>
+                                  <span className="text-black/30 ml-1.5 font-mono">...{k.key.slice(-6)}</span>
+                                </td>
+                                <td className="px-4 py-2 text-right tabular-nums">{k.calls}</td>
+                                <td className="px-4 py-2 text-right tabular-nums">
+                                  {fmtNum(k.inputTokens + k.outputTokens)}
+                                  <span className="text-black/30 ml-1">({fmtNum(k.inputTokens)}/{fmtNum(k.outputTokens)})</span>
+                                </td>
+                                <td className="px-4 py-2 text-right tabular-nums">{fmtUsd(k.costUsd)}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-10 pt-4 border-t border-black/5 text-xs text-black/40 text-center">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Lock, Globe } from 'lucide-react';
 import { VENDOR_CONFIG, isValidVendor } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
@@ -189,20 +189,29 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
                 {t.createKeyModal.scope}
               </label>
               <div className="flex gap-2">
-                {(['internal', 'external'] as KeyScope[]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setScope(s)}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      scope === s
-                        ? 'bg-black text-white border-black'
-                        : 'border-black/10 hover:border-black/30'
-                    }`}
-                  >
-                    {s === 'internal' ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
-                  </button>
-                ))}
+                {(['internal', 'external'] as KeyScope[]).map((s) => {
+                  const isInternal = s === 'internal';
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setScope(s)}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-center gap-1.5 ${
+                        scope === s
+                          ? isInternal
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-amber-600 text-white border-amber-600'
+                          : 'border-black/10 hover:border-black/30'
+                      }`}
+                    >
+                      {isInternal ? <Lock size={11} /> : <Globe size={11} />}
+                      {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
+                    </button>
+                  );
+                })}
               </div>
+              <p className="text-[10px] text-black/40 mt-1.5">
+                {scope === 'internal' ? t.createKeyModal.scopeInternalHint : t.createKeyModal.scopeExternalHint}
+              </p>
             </div>
 
             {/* Vendor Select */}
