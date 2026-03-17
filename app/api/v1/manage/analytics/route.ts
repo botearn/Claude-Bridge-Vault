@@ -35,11 +35,18 @@ export async function GET(req: Request) {
     redis.get('vault:youragent:sync').catch(() => null),
   ]);
 
-  const keys: (SubKeyData & { key: string })[] = rawKeys
+  const url = new URL(req.url);
+  const scopeFilter = url.searchParams.get('scope'); // 'internal' | 'external'
+
+  const allKeys: (SubKeyData & { key: string })[] = rawKeys
     ? Object.entries(rawKeys)
         .map(([k, v]) => { const d = parseSafe(v); return d ? { ...d, key: k } : null; })
         .filter(Boolean) as (SubKeyData & { key: string })[]
     : [];
+
+  const keys = scopeFilter
+    ? allKeys.filter(k => (k.scope ?? 'internal') === scopeFilter)
+    : allKeys;
 
   const byVendor: Record<string, { calls: number; inputTokens: number; outputTokens: number; costUsd: number; keyCount: number }> = {};
   let totalCalls = 0, totalInputTokens = 0, totalOutputTokens = 0, totalCostUsd = 0;
@@ -99,7 +106,6 @@ export async function GET(req: Request) {
   } catch { /* ignore */ }
 
   // Optional: per-key daily breakdown
-  const url = new URL(req.url);
   const wantDailyPerKey = url.searchParams.get('daily') === 'per-key';
   const filterKey = url.searchParams.get('key');
 

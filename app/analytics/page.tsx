@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useLang, LangToggle } from '@/components/LangContext';
 import { VENDOR_CONFIG } from '@/lib/vendors';
-import type { VendorId } from '@/lib/types';
+import type { VendorId, KeyScope } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,6 +165,7 @@ function Skeleton({ className }: { className?: string }) {
 export default function AnalyticsPage() {
   const { t } = useLang();
   const a = t.analytics;
+  const [scope, setScope] = useState<KeyScope>('internal');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<7 | 30>(7);
@@ -174,11 +175,12 @@ export default function AnalyticsPage() {
   const [dailyFilter, setDailyFilter] = useState<string>('');
   const [showDaily, setShowDaily] = useState(false);
 
-  const load = async (quiet = false) => {
+  const load = async (quiet = false, s?: KeyScope) => {
     if (!quiet) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await fetch('/api/v1/manage/analytics');
+      const scopeParam = s ?? scope;
+      const res = await fetch(`/api/v1/manage/analytics?scope=${scopeParam}`);
       if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
@@ -189,7 +191,7 @@ export default function AnalyticsPage() {
   const loadDaily = async (keyFilter?: string) => {
     setDailyLoading(true);
     try {
-      const params = new URLSearchParams({ daily: 'per-key' });
+      const params = new URLSearchParams({ daily: 'per-key', scope });
       if (keyFilter) params.set('key', keyFilter);
       const res = await fetch(`/api/v1/manage/analytics?${params}`);
       if (res.ok) {
@@ -237,6 +239,23 @@ export default function AnalyticsPage() {
             </button>
           </div>
         </header>
+
+        {/* Scope Toggle */}
+        <div className="flex items-center gap-1 mb-5 bg-white border border-black/10 rounded-xl p-1 w-fit">
+          {(['internal', 'external'] as KeyScope[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => { setScope(s); load(false, s); setShowDaily(false); setDailyKey(null); }}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                scope === s
+                  ? 'bg-black text-white'
+                  : 'text-black/50 hover:text-black hover:bg-black/5'
+              }`}
+            >
+              {s === 'internal' ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
+            </button>
+          ))}
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
