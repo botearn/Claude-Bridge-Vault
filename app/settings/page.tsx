@@ -70,7 +70,7 @@ function KeySettingsRow({
   const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - usedTokens) : null;
 
   return (
-    <div className="border border-black/10 rounded-xl bg-white overflow-hidden">
+    <div className="border border-[var(--border)] rounded-xl bg-white overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
           <span className={`text-[10px] rounded-full px-2 py-px uppercase tracking-wider flex-shrink-0 ${
@@ -83,7 +83,7 @@ function KeySettingsRow({
           <span className="text-[10px] border border-black/15 rounded-full px-2 py-px uppercase tracking-wider text-black/50 flex-shrink-0">
             {VENDOR_CONFIG[row.vendor].label}
           </span>
-          <span className="text-[10px] text-black/30 border border-black/10 rounded-full px-2 py-px flex-shrink-0">
+          <span className="text-[10px] text-black/30 border border-[var(--border)] rounded-full px-2 py-px flex-shrink-0">
             {groups.find(g => (g.hashKey.split(':')[1] || g.hashKey) === row.group)?.label ?? row.group}
           </span>
           <span className="text-sm font-medium truncate">{row.name}</span>
@@ -122,7 +122,7 @@ function KeySettingsRow({
               type="text"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+              className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
             />
           </div>
 
@@ -132,7 +132,7 @@ function KeySettingsRow({
               <select
                 value={form.group}
                 onChange={e => setForm(f => ({ ...f, group: e.target.value }))}
-                className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30 bg-white"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30 bg-white"
               >
                 {groups.map(g => (
                   <option key={g.hashKey} value={g.hashKey.split(':')[1] || g.hashKey}>
@@ -145,7 +145,7 @@ function KeySettingsRow({
                 type="text"
                 value={form.group}
                 onChange={e => setForm(f => ({ ...f, group: e.target.value }))}
-                className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
               />
             )}
           </div>
@@ -161,7 +161,7 @@ function KeySettingsRow({
                 placeholder={t.common.unlimited}
                 value={form.totalQuota}
                 onChange={e => setForm(f => ({ ...f, totalQuota: e.target.value }))}
-                className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
               />
             </div>
             <div>
@@ -172,7 +172,7 @@ function KeySettingsRow({
                 type="date"
                 value={form.expiresAt}
                 onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
               />
             </div>
           </div>
@@ -187,7 +187,7 @@ function KeySettingsRow({
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="flex items-center gap-1.5 px-4 py-2 border border-black/10 text-xs rounded-lg hover:bg-black/5 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 border border-[var(--border)] text-xs rounded-lg hover:bg-black/5 transition-colors"
             >
               <X size={12} /> {t.common.cancel}
             </button>
@@ -264,14 +264,14 @@ export default function SettingsPage() {
     groups.filter(g => g.hashKey.startsWith(row.vendor + ':'));
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-[#111] font-sans selection:bg-black/10">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans">
       <div className="max-w-3xl mx-auto px-6 py-12">
         {/* Header */}
-        <header className="flex items-center justify-between mb-10 border-b border-black/10 pb-6">
+        <header className="flex items-center justify-between mb-10 border-b border-[var(--border)] pb-6">
           <div className="flex items-center gap-3">
             <a href="/vault" className="text-[13px] text-black/40 hover:text-black transition-colors mr-1">&larr;</a>
             <div className="w-px h-5 bg-black/10" />
-            <div className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full border border-[var(--border)] flex items-center justify-center">
               <Settings className="w-6 h-6 text-black" />
             </div>
             <div>
@@ -286,7 +286,7 @@ export default function SettingsPage() {
         </header>
 
         {/* Scope toggle */}
-        <div className="flex items-center gap-1 mb-4 bg-white border border-black/10 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 mb-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 w-fit">
           {(['internal', 'external'] as KeyScope[]).map((sc) => (
             <button
               key={sc}
@@ -311,7 +311,7 @@ export default function SettingsPage() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 vendorFilter === v
                   ? 'bg-black text-white border-black'
-                  : 'border-black/10 text-black/50 hover:text-black hover:border-black/20 bg-white'
+                  : 'border-[var(--border)] text-black/50 hover:text-black hover:border-black/20 bg-white'
               }`}
             >
               {v === 'all' ? s.allVendors : VENDOR_CONFIG[v as VendorId].label}
@@ -349,7 +349,7 @@ export default function SettingsPage() {
 
         {/* Groups view */}
         {view === 'groups' && vendorFilter !== 'all' && (
-          <div className="bg-white border border-black/10 rounded-2xl p-6">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-6">
             <GroupManager
               vendor={vendorFilter as VendorId}
               groups={groups}
@@ -363,7 +363,7 @@ export default function SettingsPage() {
           loading ? (
             <div className="text-center py-12 text-sm text-black/30">{t.common.loading}</div>
           ) : keys.length === 0 ? (
-            <div className="text-center py-12 border border-black/10 rounded-2xl bg-white">
+            <div className="text-center py-12 border border-[var(--border)] rounded-[var(--radius-xl)] bg-white">
               <p className="text-sm text-black/30 mb-4">{s.noKeys}</p>
               <a href="/vault" className="inline-flex items-center gap-1.5 text-xs font-semibold border border-black px-4 py-2 rounded-lg hover:bg-black hover:text-white transition-colors">
                 <Plus size={12} /> {s.createKey}

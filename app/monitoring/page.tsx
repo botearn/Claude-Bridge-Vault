@@ -152,9 +152,9 @@ export default function MonitoringPage() {
   }, [group, load]);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] font-sans text-[#111] selection:bg-black/10">
+    <div className="min-h-screen bg-[var(--bg)] font-sans text-[var(--text)]">
       {/* Header */}
-      <header className="bg-white border-b border-black/10 px-6 py-4 flex items-center justify-between">
+      <header className="bg-[var(--surface)] border-b border-[var(--border)] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/vault" className="p-2 rounded-full hover:bg-black/5 transition-colors">
             <ArrowLeft size={18} />
@@ -172,7 +172,7 @@ export default function MonitoringPage() {
         <div className="flex items-center gap-2">
           <LangToggle />
           <input
-            className="text-sm border border-black/10 rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-1 focus:ring-black/20"
+            className="text-sm border border-[var(--border)] rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-1 focus:ring-black/20"
             value={group}
             onChange={(e) => setGroup(e.target.value)}
             placeholder={m.groupFilter}
@@ -180,14 +180,14 @@ export default function MonitoringPage() {
           />
           <button
             onClick={triggerSync}
-            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-black/10 bg-white hover:bg-black/5 transition-colors"
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[var(--border)] bg-white hover:bg-black/5 transition-colors"
           >
             <CloudDownload size={14} className={syncing ? 'animate-pulse' : ''} />
             {m.syncYA}
           </button>
           <button
             onClick={() => load(group)}
-            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-black/10 bg-white hover:bg-black/5 transition-colors"
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-[var(--border)] bg-white hover:bg-black/5 transition-colors"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             {m.refresh}
@@ -212,7 +212,7 @@ export default function MonitoringPage() {
 
             {/* YourAgent Real Data */}
             {yaSync && (
-              <section className="bg-white rounded-2xl border border-black/10 shadow-sm overflow-hidden">
+              <section className="bg-white rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
                   <div>
                     <h2 className="font-medium text-sm">{m.yaRealData}</h2>
@@ -295,7 +295,7 @@ export default function MonitoringPage() {
             )}
 
             {/* Keys table */}
-            <section className="bg-white rounded-2xl border border-black/10 shadow-sm overflow-hidden">
+            <section className="bg-white rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
                 <h2 className="font-medium text-sm">{m.keyList} <span className="text-black/40 font-normal">· {m.group}: {data.group}</span></h2>
                 <span className="text-xs text-black/40">{data.keys.length} {m.items}</span>
@@ -357,7 +357,7 @@ export default function MonitoringPage() {
             </section>
 
             {/* Events */}
-            <section className="bg-white rounded-2xl border border-black/10 shadow-sm overflow-hidden">
+            <section className="bg-white rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
                 <h2 className="font-medium text-sm">{m.eventLog}</h2>
                 <span className="text-xs text-black/40">{m.recentN(data.events.length)}</span>
@@ -397,7 +397,7 @@ export default function MonitoringPage() {
 
 function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-[var(--border)] shadow-sm p-5">
       <div className="flex items-center gap-2 text-black/40 text-xs mb-3">
         {icon}
         <span>{label}</span>

@@ -82,7 +82,7 @@ export function DocsModal({ onClose }: DocsModalProps) {
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto px-6 py-6 flex-1 text-sm text-[#111]">
+        <div className="overflow-y-auto px-6 py-6 flex-1 text-sm text-[var(--text)]">
 
           <Section title={d.overview}>
             <P>{d.overviewText}</P>

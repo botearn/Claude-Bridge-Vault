@@ -175,17 +175,17 @@ export default function AnalyticsPage() {
   const totalVendorCalls = Object.values(data?.byVendor ?? {}).reduce((s, v) => s + v.calls, 0);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-[#111] font-sans selection:bg-black/10">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans">
       <div className="max-w-5xl mx-auto px-6 py-12">
 
         {/* Header */}
-        <header className="flex items-center justify-between mb-10 border-b border-black/10 pb-6">
+        <header className="flex items-center justify-between mb-10 border-b border-[var(--border)] pb-6">
           <div className="flex items-center gap-3">
             <a href="/vault" className="text-[13px] text-black/40 hover:text-black transition-colors mr-1">
               <ArrowLeft size={15} />
             </a>
             <div className="w-px h-5 bg-black/10" />
-            <div className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full border border-[var(--border)] flex items-center justify-center">
               <Activity className="w-5 h-5 text-black" />
             </div>
             <div>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             <button
               onClick={() => load(true)}
               disabled={refreshing}
-              className="p-2 rounded-lg border border-black/10 hover:bg-black/5 transition-colors disabled:opacity-40"
+              className="p-2 rounded-lg border border-[var(--border)] hover:bg-black/5 transition-colors disabled:opacity-40"
               title="Refresh"
             >
               <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
             { label: a.estCost, icon: <TrendingUp size={12} />, value: loading ? null : fmtUsd(data?.summary.totalCostUsd ?? 0) },
             { label: a.activeKeys, icon: <Key size={12} />, value: loading ? null : String(data?.summary.activeKeys ?? 0) },
           ].map(({ label, icon, value }) => (
-            <div key={label} className="bg-white border border-black/10 rounded-2xl p-4 shadow-sm shadow-black/5">
+            <div key={label} className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-4 shadow-vault">
               <div className="flex items-center gap-1.5 text-black/40 mb-2">
                 {icon}
                 <span className="text-[10px] uppercase tracking-[0.2em]">{label}</span>
@@ -249,7 +249,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
 
           {/* Sparkline */}
-          <div className="md:col-span-3 bg-white border border-black/10 rounded-2xl p-5 shadow-sm shadow-black/5">
+          <div className="md:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-5 shadow-vault">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-semibold uppercase tracking-[0.15em] text-black/50">{a.callActivity}</div>
               <div className="flex gap-1">
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Vendor Breakdown */}
-          <div className="md:col-span-2 bg-white border border-black/10 rounded-2xl p-5 shadow-sm shadow-black/5">
+          <div className="md:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-5 shadow-vault">
             <div className="text-xs font-semibold uppercase tracking-[0.15em] text-black/50 mb-4">{a.vendorBreakdown}</div>
             {loading
               ? <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-8" />)}</div>
@@ -324,7 +324,7 @@ export default function AnalyticsPage() {
             )
             : data?.keyHealth.length === 0
               ? (
-                <div className="bg-white border border-black/10 rounded-2xl p-8 text-center text-sm text-black/30 shadow-sm">
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-8 text-center text-sm text-black/30 shadow-sm">
                   {a.noKeys}
                 </div>
               )
@@ -336,7 +336,7 @@ export default function AnalyticsPage() {
                     const cfg = VENDOR_CONFIG[k.vendor];
                     const tokens = (k.inputTokens || 0) + (k.outputTokens || 0);
                     return (
-                      <div key={k.key} className={`bg-white border rounded-2xl p-4 shadow-sm shadow-black/5 ${expired ? 'border-red-200' : nearQ ? 'border-amber-200' : 'border-black/10'}`}>
+                      <div key={k.key} className={`bg-[var(--surface)] border rounded-[var(--radius-xl)] p-4 shadow-vault ${expired ? 'border-red-200' : nearQ ? 'border-amber-200' : 'border-[var(--border)]'}`}>
                         <div className="flex items-start justify-between mb-2">
                           <div className="min-w-0">
                             <div className="text-sm font-semibold truncate" title={k.name || 'Unnamed'}>{k.name || 'Unnamed'}</div>

@@ -109,14 +109,14 @@ export default function UsageQuery() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-[#111] font-sans selection:bg-black/10">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans">
       <div className="max-w-3xl mx-auto px-6 py-12">
         {/* Header */}
-        <header className="flex items-center justify-between mb-10 border-b border-black/10 pb-6">
+        <header className="flex items-center justify-between mb-10 border-b border-[var(--border)] pb-6">
           <div className="flex items-center gap-3">
             <a href="/vault" className="text-[13px] text-black/40 hover:text-black transition-colors mr-1">&larr;</a>
             <div className="w-px h-5 bg-black/10" />
-            <div className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full border border-[var(--border)] flex items-center justify-center">
               <KeyRound className="w-6 h-6 text-black" />
             </div>
             <div>
@@ -133,9 +133,9 @@ export default function UsageQuery() {
         </header>
 
         {/* Search Box */}
-        <div className="border border-black/10 rounded-2xl p-4 mb-6 bg-white shadow-sm shadow-black/5">
+        <div className="border border-[var(--border)] rounded-[var(--radius-xl)] p-4 mb-6 bg-white shadow-vault">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2 flex-1 border border-black/10 rounded-xl px-3 py-2 bg-black/[0.03]">
+            <div className="flex items-center gap-2 flex-1 border border-[var(--border)] rounded-xl px-3 py-2 bg-black/[0.03]">
               <Search className="w-4 h-4 text-black/50" />
               <input
                 type="text"
@@ -159,7 +159,7 @@ export default function UsageQuery() {
 
         {/* Error */}
         {error && (
-          <div className="bg-black/5 border border-black/10 rounded-xl p-4 flex items-center gap-3 text-xs text-black mb-6">
+          <div className="bg-black/5 border border-[var(--border)] rounded-xl p-4 flex items-center gap-3 text-xs text-black mb-6">
             <AlertCircle size={14} />
             {error}
           </div>
@@ -168,7 +168,7 @@ export default function UsageQuery() {
         {/* Result Card */}
         {result && (
           <div className="animate-in fade-in zoom-in-95 duration-300 mb-8">
-            <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm shadow-black/5">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-6 shadow-vault">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -191,7 +191,7 @@ export default function UsageQuery() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <BarChart2 size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.totalQuota}</span>
@@ -200,14 +200,14 @@ export default function UsageQuery() {
                     {result.totalQuota != null ? result.totalQuota.toLocaleString() : '∞'}
                   </div>
                 </div>
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <Zap size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.used}</span>
                   </div>
                   <div className="text-sm font-semibold">{((result.inputTokens || 0) + (result.outputTokens || 0)).toLocaleString()}</div>
                 </div>
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <BarChart2 size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.remaining}</span>
@@ -218,7 +218,7 @@ export default function UsageQuery() {
                       : '∞'}
                   </div>
                 </div>
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <CalendarClock size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.expires}</span>
@@ -230,7 +230,7 @@ export default function UsageQuery() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02] sm:col-span-2">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)] sm:col-span-2">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <BarChart2 size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.tokens}</span>
@@ -246,7 +246,7 @@ export default function UsageQuery() {
                     </div>
                   )}
                 </div>
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02] sm:col-span-2">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)] sm:col-span-2">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <Zap size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.estCost}</span>
@@ -260,14 +260,14 @@ export default function UsageQuery() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <Clock size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.created}</span>
                   </div>
                   <div className="text-xs font-mono">{new Date(result.createdAt).toLocaleDateString()}</div>
                 </div>
-                <div className="border border-black/10 rounded-xl p-3 bg-black/[0.02]">
+                <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-raised)]">
                   <div className="flex items-center gap-1.5 text-black/50 mb-1.5">
                     <Zap size={11} />
                     <span className="text-[10px] uppercase tracking-[0.2em]">{q.status}</span>
@@ -276,7 +276,7 @@ export default function UsageQuery() {
                 </div>
               </div>
 
-              <div className="border border-black/10 rounded-xl p-4 bg-black/[0.02] mb-4">
+              <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-raised)] mb-4">
                 <div className="flex items-center gap-2 text-black/60 mb-1">
                   <Database size={11} />
                   <span className="text-[10px] uppercase tracking-[0.3em]">{q.baseUrl}</span>
@@ -293,7 +293,7 @@ export default function UsageQuery() {
               </button>
 
               {showShare && (
-                <div className="mt-4 border border-black/10 rounded-xl p-4 bg-[#fefefe]">
+                <div className="mt-4 border border-[var(--border)] rounded-xl p-4 bg-[#fefefe]">
                   <ShareSnippet subKey={result.key} vendor={result.vendor} />
                 </div>
               )}
@@ -303,7 +303,7 @@ export default function UsageQuery() {
 
         {/* Query History */}
         {history.length > 0 && (
-          <div className="border border-black/10 rounded-2xl bg-white shadow-sm shadow-black/5 overflow-hidden">
+          <div className="border border-[var(--border)] rounded-[var(--radius-xl)] bg-white shadow-vault overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-black/5">
               <div className="flex items-center gap-2 text-xs font-semibold text-black/50 uppercase tracking-widest">
                 <History size={12} />
@@ -329,7 +329,7 @@ export default function UsageQuery() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xs font-medium truncate">{h.name}</span>
-                        <span className="text-[10px] text-black/30 border border-black/10 rounded-full px-2 py-px uppercase tracking-wider flex-shrink-0">
+                        <span className="text-[10px] text-black/30 border border-[var(--border)] rounded-full px-2 py-px uppercase tracking-wider flex-shrink-0">
                           {h.vendor}
                         </span>
                       </div>
