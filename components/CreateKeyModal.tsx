@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Lock, Globe, Loader2 } from 'lucide-react';
+import { X, Plus, Lock, Globe } from 'lucide-react';
 import { VENDOR_CONFIG, VENDOR_MODELS, isValidVendor } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
 import { useLang } from './LangContext';
 import { emitVaultSync } from '@/lib/vaultSync';
+import { ModelSelector } from './ModelSelector';
 
 interface GroupOption {
   key: string;
@@ -180,27 +181,6 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
     }
   };
 
-  // Render model <select> with optional optgroup
-  const renderModelOptions = () => {
-    const hasGroups = models.some((m) => m.group);
-    if (!hasGroups) {
-      return models.map((m) => (
-        <option key={m.value} value={m.value}>{m.label}</option>
-      ));
-    }
-    const groupNames: string[] = [];
-    for (const m of models) {
-      if (m.group && !groupNames.includes(m.group)) groupNames.push(m.group);
-    }
-    return groupNames.map((g) => (
-      <optgroup key={g} label={g}>
-        {models.filter((m) => m.group === g).map((m) => (
-          <option key={m.value} value={m.value}>{m.label}</option>
-        ))}
-      </optgroup>
-    ));
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50">
       <div className="bg-white text-black border border-black/10 rounded-2xl w-full max-w-md p-8 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -299,21 +279,13 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
                 <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
                   {t.createKeyModal.model}{' '}
                   <span className="normal-case font-normal">({t.createKeyModal.optional})</span>
-                  {modelsLoading && <Loader2 size={10} className="inline ml-1 animate-spin" />}
                 </label>
-                <select
+                <ModelSelector
+                  models={models}
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                  disabled={modelsLoading}
-                >
-                  {renderModelOptions()}
-                </select>
-                {models.length > 20 && (
-                  <p className="text-[10px] text-black/30 mt-1">
-                    {models.length} models available
-                  </p>
-                )}
+                  onChange={setModel}
+                  loading={modelsLoading}
+                />
               </div>
             )}
 
