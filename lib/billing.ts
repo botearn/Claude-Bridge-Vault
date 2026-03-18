@@ -64,8 +64,12 @@ const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
   __default__:                 { input: 3.0,   output: 15.0  },
 };
 
-// Yunwu proxies OpenAI-compatible models
+// Yunwu proxies OpenAI-compatible models (includes all vendors routed through Yunwu)
 const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: number }> = {
+  // OpenAI
+  'gpt-4.1':             { input: 2.00,  output: 8.0   },
+  'gpt-4.1-mini':        { input: 0.40,  output: 1.60  },
+  'gpt-4.1-nano':        { input: 0.10,  output: 0.40  },
   'gpt-4o':              { input: 2.50,  output: 10.0  },
   'gpt-4o-2024-11-20':   { input: 2.50,  output: 10.0  },
   'gpt-4o-mini':         { input: 0.15,  output: 0.60  },
@@ -79,6 +83,22 @@ const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: number }> = 
   'o3':                  { input: 10.0,  output: 40.0  },
   'o3-mini':             { input: 1.10,  output: 4.40  },
   'o4-mini':             { input: 1.10,  output: 4.40  },
+  // Google Gemini
+  'gemini-2.5-pro':      { input: 1.25,  output: 10.0  },
+  'gemini-2.5-flash':    { input: 0.15,  output: 0.60  },
+  'gemini-2.0-flash':    { input: 0.10,  output: 0.40  },
+  // xAI Grok
+  'grok-3':              { input: 3.0,   output: 15.0  },
+  'grok-3-mini':         { input: 0.30,  output: 0.50  },
+  // DeepSeek
+  'deepseek-chat':       { input: 0.27,  output: 1.10  },
+  'deepseek-reasoner':   { input: 0.55,  output: 2.19  },
+  // Claude via Yunwu (same Anthropic pricing)
+  'claude-opus-4-6':           { input: 15.0,  output: 75.0  },
+  'claude-sonnet-4-6':         { input: 3.0,   output: 15.0  },
+  'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.0   },
+  'claude-sonnet-4-20250514':  { input: 3.0,   output: 15.0  },
+  'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
   __default__:           { input: 2.50,  output: 10.0  },
 };
 

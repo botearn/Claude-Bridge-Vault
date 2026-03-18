@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
     const vendor = typeof payload?.vendor === 'string' ? payload.vendor.trim() : '';
     const group = typeof payload?.group === 'string' ? payload.group.trim() : '';
     const scope: KeyScope = payload?.scope === 'external' ? 'external' : 'internal';
+    const model = typeof payload?.model === 'string' && payload.model ? payload.model : undefined;
     const totalQuota = typeof payload?.totalQuota === 'number' ? Math.floor(payload.totalQuota) : null;
     const expiresAt = typeof payload?.expiresAt === 'string' && payload.expiresAt ? payload.expiresAt : null;
 
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
       vendor,
       group,
       scope,
+      ...(model ? { model } : {}),
       usage: 0,
       createdAt: new Date().toISOString(),
       lastUsed: null,

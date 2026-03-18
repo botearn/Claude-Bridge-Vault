@@ -16,6 +16,7 @@ export interface SubKeyData {
   vendor: VendorId;
   group: string;
   scope?: KeyScope;            // default 'internal' for backward compat
+  model?: string;              // default model for this key (optional)
   usage: number;
   inputTokens?: number;
   outputTokens?: number;

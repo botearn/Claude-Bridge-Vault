@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Lock, Globe } from 'lucide-react';
-import { VENDOR_CONFIG, isValidVendor } from '@/lib/vendors';
+import { VENDOR_CONFIG, VENDOR_MODELS, isValidVendor } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
 import { useLang } from './LangContext';
@@ -27,6 +27,7 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
   const [newGroupId, setNewGroupId] = useState('');
   const [newGroupLabel, setNewGroupLabel] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [model, setModel] = useState('');
   const [name, setName] = useState('');
   const [totalQuota, setTotalQuota] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -45,6 +46,8 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
 
   useEffect(() => {
     loadGroups(vendor);
+    const models = VENDOR_MODELS[vendor];
+    setModel(models?.[0]?.value ?? '');
   }, [vendor]);
 
   const loadGroups = async (v: VendorId) => {
@@ -64,12 +67,13 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
 
   const buildCurlSnippet = (subKey: string, v: VendorId) => {
     const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + VENDOR_CONFIG[v].basePath;
+    const selectedModel = model || VENDOR_MODELS[v]?.[0]?.value || 'gpt-4o';
 
     if (v === 'yunwu') {
-      return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`;
+      return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"${selectedModel}","messages":[{"role":"user","content":"Hello"}]}'`;
     }
 
-    return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
+    return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"${selectedModel}","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
   };
 
   const handleCopyKey = async () => {
@@ -125,6 +129,7 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
           vendor,
           group,
           scope,
+          model: model || undefined,
           totalQuota: totalQuota ? parseInt(totalQuota, 10) : null,
           expiresAt: expiresAt || null,
         }),
@@ -235,6 +240,42 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
                 ))}
               </div>
             </div>
+
+            {/* Model Select */}
+            {VENDOR_MODELS[vendor]?.length > 0 && (
+              <div>
+                <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
+                  {t.createKeyModal.model}{' '}
+                  <span className="normal-case font-normal">({t.createKeyModal.optional})</span>
+                </label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+                >
+                  {(() => {
+                    const models = VENDOR_MODELS[vendor];
+                    const hasGroups = models.some((m) => m.group);
+                    if (!hasGroups) {
+                      return models.map((m) => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ));
+                    }
+                    const groups: string[] = [];
+                    for (const m of models) {
+                      if (m.group && !groups.includes(m.group)) groups.push(m.group);
+                    }
+                    return groups.map((g) => (
+                      <optgroup key={g} label={g}>
+                        {models.filter((m) => m.group === g).map((m) => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </optgroup>
+                    ));
+                  })()}
+                </select>
+              </div>
+            )}
 
             {/* Group Select */}
             <div>

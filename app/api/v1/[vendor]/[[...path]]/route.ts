@@ -46,11 +46,12 @@ function isStreaming(rawBody: string): boolean {
 async function extractTokensFromSSE(
   stream: ReadableStream,
   vendor: string,
-): Promise<{ inputTokens: number; outputTokens: number }> {
+): Promise<{ inputTokens: number; outputTokens: number; realModel?: string }> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let inputTokens = 0;
   let outputTokens = 0;
+  let realModel: string | undefined;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -63,10 +64,17 @@ async function extractTokensFromSSE(
         try {
           const evt = JSON.parse(jsonStr) as Record<string, unknown>;
 
+          // Extract real model from response
+          if (!realModel && typeof evt.model === 'string') {
+            realModel = evt.model;
+          }
+
           if (vendor === 'claude' || vendor === 'youragent') {
             // Anthropic SSE: message_start has input, message_delta has output
             if (evt.type === 'message_start') {
-              const usage = (evt.message as Record<string, unknown>)?.usage as Record<string, number> | undefined;
+              const msg = evt.message as Record<string, unknown> | undefined;
+              if (!realModel && typeof msg?.model === 'string') realModel = msg.model;
+              const usage = msg?.usage as Record<string, number> | undefined;
               if (usage) { inputTokens = usage.input_tokens ?? 0; outputTokens = usage.output_tokens ?? 0; }
             } else if (evt.type === 'message_delta') {
               const usage = evt.usage as Record<string, number> | undefined;
@@ -86,7 +94,7 @@ async function extractTokensFromSSE(
   } catch { /* ignore stream errors */ } finally {
     reader.releaseLock();
   }
-  return { inputTokens, outputTokens };
+  return { inputTokens, outputTokens, realModel };
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
@@ -157,8 +165,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     let rawBody = await req.text();
-    const model = safeModelFromBody(rawBody);
+    let model = safeModelFromBody(rawBody);
     const streaming = isStreaming(rawBody);
+
+    // Auto-inject model from key config if request doesn't specify one
+    const keyModel = (keyData as { model?: string }).model;
+    if (!model && keyModel) {
+      try {
+        const parsed = JSON.parse(rawBody);
+        parsed.model = keyModel;
+        rawBody = JSON.stringify(parsed);
+        model = keyModel;
+      } catch { /* keep original body */ }
+    }
 
     // Inject stream_options for OpenAI-compatible vendors so usage is included in final SSE chunk
     if (streaming && vendor === 'yunwu') {
@@ -224,11 +243,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (streaming && response.body) {
       const [clientStream, parseStream] = response.body.tee();
 
-      void extractTokensFromSSE(parseStream, vendor).then(async ({ inputTokens, outputTokens }) => {
+      void extractTokensFromSSE(parseStream, vendor).then(async ({ inputTokens, outputTokens, realModel }) => {
         if (inputTokens === 0 && outputTokens === 0) return;
-        const costInc = estimateVendorCostUsd(vendor, model, { inputTokens, outputTokens });
-        console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ stream in=${inputTokens} out=${outputTokens} cost=$${costInc.toFixed(6)}`);
-        void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: model ?? undefined, inputTokens, outputTokens });
+        const effectiveModel = realModel ?? model;
+        const costInc = estimateVendorCostUsd(vendor, effectiveModel, { inputTokens, outputTokens });
+        console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ stream model=${effectiveModel ?? '?'} in=${inputTokens} out=${outputTokens} cost=$${costInc.toFixed(6)}`);
+        void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens, outputTokens });
         const latest = parseKeyRecord(await redis.hget('vault:subkeys', subKey)) ?? keyData;
         const lk = latest as { inputTokens?: number; outputTokens?: number; costUsd?: number };
         void redis.hset('vault:subkeys', {
@@ -250,12 +270,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     // Non-streaming: parse JSON + update tokens/cost
     const data = await response.json() as Record<string, unknown>;
+    const realModel = typeof data.model === 'string' ? data.model : undefined;
+    const effectiveModel = realModel ?? model;
     const tokenUsage = extractTokenUsage(vendor, data);
     const inputInc = tokenUsage?.inputTokens ?? 0;
     const outputInc = tokenUsage?.outputTokens ?? 0;
-    const costInc = tokenUsage ? estimateVendorCostUsd(vendor, model, tokenUsage) : 0;
-    console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ in=${inputInc} out=${outputInc} cost=$${costInc.toFixed(6)}`);
-    void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: model ?? undefined, inputTokens: inputInc, outputTokens: outputInc });
+    const costInc = tokenUsage ? estimateVendorCostUsd(vendor, effectiveModel, tokenUsage) : 0;
+    console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ model=${effectiveModel ?? '?'} in=${inputInc} out=${outputInc} cost=$${costInc.toFixed(6)}`);
+    void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens: inputInc, outputTokens: outputInc });
 
     const latest = parseKeyRecord(await redis.hget('vault:subkeys', subKey)) ?? keyData;
     const lk = latest as { inputTokens?: number; outputTokens?: number; costUsd?: number };
