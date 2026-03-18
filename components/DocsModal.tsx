@@ -111,7 +111,7 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
           <Section title={d.examples}>
             <P>{d.exampleClaude}</P>
-            <Block>{`curl https://your-domain.com/api/v1/claude \\
+            <Block>{`curl https://sitesfy.run/api/v1/claude \\
   -H "x-api-key: sk-vault-claude-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
