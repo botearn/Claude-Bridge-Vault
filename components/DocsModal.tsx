@@ -100,13 +100,13 @@ export function DocsModal({ onClose }: DocsModalProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5 font-mono">
-                  <tr><td className="px-4 py-2.5">Claude</td><td className="px-4 py-2.5 text-black/60">/api/v1/claude</td><td className="px-4 py-2.5 text-black/60">Anthropic (x-api-key)</td></tr>
-                  <tr><td className="px-4 py-2.5">YourAgent</td><td className="px-4 py-2.5 text-black/60">/api/v1/youragent</td><td className="px-4 py-2.5 text-black/60">Anthropic (x-api-key)</td></tr>
-                  <tr><td className="px-4 py-2.5">Yunwu</td><td className="px-4 py-2.5 text-black/60">/api/v1/yunwu</td><td className="px-4 py-2.5 text-black/60">OpenAI (Bearer)</td></tr>
+                  <tr><td className="px-4 py-2.5">Claude</td><td className="px-4 py-2.5 text-black/60">/api/v1/claude</td><td className="px-4 py-2.5 text-black/60">Anthropic</td></tr>
+                  <tr><td className="px-4 py-2.5">YourAgent</td><td className="px-4 py-2.5 text-black/60">/api/v1/youragent</td><td className="px-4 py-2.5 text-black/60">Anthropic</td></tr>
+                  <tr><td className="px-4 py-2.5">Yunwu</td><td className="px-4 py-2.5 text-black/60">/api/v1/yunwu</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
                 </tbody>
               </table>
             </div>
-            <P>Claude/YourAgent authenticate via <Code>x-api-key</Code> header. Yunwu uses <Code>Bearer</Code> token.</P>
+            <P>All vendors authenticate via <Code>x-api-key</Code> header with your Sub-Key.</P>
           </Section>
 
           <Section title={d.examples}>

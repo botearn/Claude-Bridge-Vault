@@ -208,9 +208,10 @@ export default function DocsPage() {
                 rows={[
                   ['Claude', '/api/v1/claude', 'x-api-key', 'Anthropic Messages'],
                   ['YourAgent', '/api/v1/youragent', 'x-api-key', 'Anthropic Messages'],
-                  ['Yunwu', '/api/v1/yunwu', 'Bearer', 'OpenAI Chat Completions'],
+                  ['Yunwu', '/api/v1/yunwu', 'x-api-key', 'OpenAI Chat Completions'],
                 ]}
               />
+              <P>All vendors authenticate via <code className="px-1.5 py-0.5 bg-[var(--surface-raised)] border border-[var(--border)] rounded-[var(--radius-sm)] font-mono text-[12px]">x-api-key</code> header with your Sub-Key. Token Bank internally converts to the upstream vendor&apos;s auth format (Bearer for Yunwu/OpenAI).</P>
             </Section>
 
             {/* ── 3. Usage Examples ── */}

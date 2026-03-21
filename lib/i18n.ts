@@ -267,7 +267,7 @@ export const translations = {
         'Token Bank is a multi-vendor API gateway. Use Sub-Keys in place of raw vendor keys. Each Sub-Key has independent token quota, expiry, rate limiting, and cost tracking. All requests are transparently proxied to the corresponding vendor with automatic master key rotation and failover.',
       proxyEndpoints: 'Proxy Endpoints',
       proxyDesc:
-        'Replace the vendor Base URL with one of the paths below. Claude and YourAgent authenticate via x-api-key header; Yunwu uses Bearer token:',
+        'Replace the vendor Base URL with one of the paths below. All vendors authenticate via x-api-key header with your Sub-Key:',
       vendor: 'Vendor',
       path: 'Proxy Path',
       auth: 'Auth Method',
@@ -596,7 +596,7 @@ export const translations = {
         'Token Bank 是一个多厂商 API 网关，使用子密钥（Sub-Key）代替原始厂商密钥进行调用。每个子密钥拥有独立的 Token 配额、过期时间、速率限制和费用追踪。所有请求透明转发到对应厂商，支持 Master Key 自动轮转和故障转移。',
       proxyEndpoints: '代理端点',
       proxyDesc:
-        '将原始厂商请求的 Base URL 替换为以下地址。Claude 和 YourAgent 通过 x-api-key 认证，Yunwu 使用 Bearer token：',
+        '将原始厂商请求的 Base URL 替换为以下地址，所有厂商统一通过 x-api-key 请求头传入子密钥认证：',
       vendor: '厂商',
       path: '代理路径',
       auth: '认证方式',
