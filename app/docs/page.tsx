@@ -240,9 +240,20 @@ export default function DocsPage() {
               <Block>{`curl https://sitesfy.run/api/v1/claude \\
   -H "x-api-key: sk-vault-claude-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
+  -H "anthropic-version: 2023-06-01" \\
   -d '{
     "model": "claude-sonnet-4-20250514",
     "max_tokens": 1024,
+    "stream": true,
+    "messages": [{"role":"user","content":"Hello"}]
+  }'`}</Block>
+
+              <P>{d.exampleYunwuStream}</P>
+              <Block>{`curl https://sitesfy.run/api/v1/yunwu \\
+  -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gemini-2.5-flash",
     "stream": true,
     "messages": [{"role":"user","content":"Hello"}]
   }'
