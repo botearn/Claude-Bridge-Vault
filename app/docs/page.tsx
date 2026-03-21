@@ -208,7 +208,7 @@ export default function DocsPage() {
                 rows={[
                   ['Claude', '/api/v1/claude', 'x-api-key', 'Anthropic Messages'],
                   ['YourAgent', '/api/v1/youragent', 'x-api-key', 'Anthropic Messages'],
-                  ['Yunwu', '/api/v1/yunwu', 'x-api-key', 'OpenAI Chat Completions'],
+                  ['Yunwu', '/api/v1/yunwu', 'Bearer', 'OpenAI Chat Completions'],
                 ]}
               />
             </Section>
@@ -310,11 +310,27 @@ Content-Type: application/json
               <Table
                 headers={['Vendor', 'Models', 'Pricing Source']}
                 rows={[
-                  ['Claude', 'Opus 4, Sonnet 4, Haiku 4.5, 3.5 series', 'Anthropic official'],
+                  ['Claude', 'Opus 4.6/4, Sonnet 4.6/4, Haiku 4.5', 'Anthropic official'],
                   ['YourAgent', 'Same as Claude', 'Claude price x 4%'],
-                  ['Yunwu', 'GPT-4o, o1, o3, o4-mini, etc.', 'OpenAI official'],
+                  ['Yunwu', 'See below (multi-vendor)', 'Per-vendor official pricing'],
                 ]}
               />
+              <div className="mt-4">
+                <P>{d.yunwuModelsNote}</P>
+              </div>
+              <Table
+                headers={['Provider', 'Models', 'Pricing Source']}
+                rows={[
+                  ['OpenAI', 'GPT-4.1, 4.1-mini, 4.1-nano, GPT-4o, 4o-mini, o3, o4-mini, o1, o1-mini', 'OpenAI official'],
+                  ['Google', 'Gemini 2.5 Pro, 2.5 Flash, 2.0 Flash', 'Google official'],
+                  ['Claude (via Yunwu)', 'Opus 4.6/4, Sonnet 4.6/4, Haiku 4.5', 'Anthropic official'],
+                  ['xAI', 'Grok 3, Grok 3 mini', 'xAI official'],
+                  ['DeepSeek', 'DeepSeek Chat, DeepSeek Reasoner', 'DeepSeek official'],
+                ]}
+              />
+              <div className="mt-3 p-3 bg-[var(--surface-raised)] rounded-[var(--radius-md)] border border-[var(--border)]">
+                <P>{d.geminiRoutingNote}</P>
+              </div>
             </Section>
 
             {/* ── 11. Master Key Rotation ── */}
@@ -322,11 +338,14 @@ Content-Type: application/json
               <P>{d.masterKeyDesc}</P>
               <Block>{`# Environment variable example:
 CLAUDE_MASTER_KEY=sk-ant-key1,sk-ant-key2,sk-ant-key3
+YUNWU_MASTER_KEY=sk-yunwu-main1,sk-yunwu-main2
+YUNWU_MASTER_KEY_GEMINI=sk-yunwu-gemini1   # optional, for Gemini models
 
 # Token Bank will:
 # 1. Round-robin between keys on each request
 # 2. On 401/429/5xx, automatically try the next key
-# 3. Log which key succeeded: [proxy] claude ✓ succeeded with master-key#1`}</Block>
+# 3. Route gemini-* models to YUNWU_MASTER_KEY_GEMINI if set
+# 4. Log which key succeeded: [proxy] claude ✓ succeeded with master-key#1`}</Block>
             </Section>
 
             {/* ── 12. Webhook ── */}
