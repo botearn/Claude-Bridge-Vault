@@ -8,7 +8,7 @@ A multi-vendor API gateway + dashboard that issues **Sub-Keys** (e.g. `sk-vault-
 - Internal / External scope separation
 - Collapsible sidebar navigation
 
-**Live:** [https://sitesfy.run](https://sitesfy.run)
+**Live:** [https://www.sitesfy.run](https://www.sitesfy.run)
 
 ---
 
@@ -40,7 +40,7 @@ CLAUDE_MASTER_KEY=...
 YUNWU_MASTER_KEY=...
 
 # Optional
-NEXT_PUBLIC_BASE_URL=https://sitesfy.run
+NEXT_PUBLIC_BASE_URL=https://www.sitesfy.run
 WEBHOOK_URL=...
 FEISHU_WEBHOOK_URL=...
 ```
@@ -63,7 +63,7 @@ Open http://localhost:3000
 ### YourAgent / Claude (Anthropic format)
 
 ```bash
-curl https://sitesfy.run/api/v1/youragent \
+curl https://www.sitesfy.run/api/v1/youragent \
   -H "x-api-key: sk-vault-youragent-xxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
@@ -73,7 +73,7 @@ curl https://sitesfy.run/api/v1/youragent \
 ### Yunwu (OpenAI-compatible)
 
 ```bash
-curl https://sitesfy.run/api/v1/yunwu \
+curl https://www.sitesfy.run/api/v1/yunwu \
   -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'

@@ -217,7 +217,7 @@ export default function DocsPage() {
             {/* ── 3. Usage Examples ── */}
             <Section id="usage-examples" title={d.examples}>
               <P>{d.exampleClaude}</P>
-              <Block>{`curl https://sitesfy.run/api/v1/claude \\
+              <Block>{`curl https://www.sitesfy.run/api/v1/claude \\
   -H "x-api-key: sk-vault-claude-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
@@ -228,7 +228,7 @@ export default function DocsPage() {
   }'`}</Block>
 
               <P>{d.exampleYunwu}</P>
-              <Block>{`curl https://sitesfy.run/api/v1/yunwu \\
+              <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
   -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -237,7 +237,7 @@ export default function DocsPage() {
   }'`}</Block>
 
               <P>{d.exampleStream}</P>
-              <Block>{`curl https://sitesfy.run/api/v1/claude \\
+              <Block>{`curl https://www.sitesfy.run/api/v1/claude \\
   -H "x-api-key: sk-vault-claude-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
@@ -249,7 +249,7 @@ export default function DocsPage() {
   }'`}</Block>
 
               <P>{d.exampleYunwuStream}</P>
-              <Block>{`curl https://sitesfy.run/api/v1/yunwu \\
+              <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
   -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{

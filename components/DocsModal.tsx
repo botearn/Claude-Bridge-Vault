@@ -111,14 +111,14 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
           <Section title={d.examples}>
             <P>{d.exampleClaude}</P>
-            <Block>{`curl https://sitesfy.run/api/v1/claude \\
+            <Block>{`curl https://www.sitesfy.run/api/v1/claude \\
   -H "x-api-key: sk-vault-claude-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{"model":"claude-sonnet-4-20250514","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`}</Block>
 
             <P>{d.exampleYunwu}</P>
-            <Block>{`curl https://sitesfy.run/api/v1/yunwu \\
+            <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
   -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`}</Block>
