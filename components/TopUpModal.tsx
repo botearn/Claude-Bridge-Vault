@@ -1,42 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Wallet } from 'lucide-react';
+import { X, Wallet, Search, CheckCircle } from 'lucide-react';
 import { useLang } from './LangContext';
 
 interface TopUpModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  currentUserId?: string;
+  defaultEmail?: string;
 }
 
 const PRESETS = [5, 10, 20, 50, 100];
 
-export function TopUpModal({ onClose, onSuccess, currentUserId }: TopUpModalProps) {
+export function TopUpModal({ onClose, onSuccess, defaultEmail = '' }: TopUpModalProps) {
   const { t } = useLang();
   const l = t.dashboard;
+
+  const [email, setEmail] = useState(defaultEmail);
   const [amount, setAmount] = useState('');
-  const [targetUserId, setTargetUserId] = useState(currentUserId ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<{ balanceUsd: number } | null>(null);
+  const [newBalance, setNewBalance] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const num = parseFloat(amount);
-    if (!num || num <= 0) return;
+    if (!email.trim() || !num || num <= 0) return;
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/v1/manage/balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: targetUserId, amountUsd: num }),
+        body: JSON.stringify({ email: email.trim(), amountUsd: num }),
       });
       const data = await res.json();
       if (res.ok) {
-        setResult(data);
-        setTimeout(onSuccess, 1200);
+        setNewBalance(data.balanceUsd);
+        setTimeout(onSuccess, 1500);
       } else {
         setError(data.error || 'Failed');
       }
@@ -62,26 +63,32 @@ export function TopUpModal({ onClose, onSuccess, currentUserId }: TopUpModalProp
           <h2 className="text-base font-bold">{l.topUp}</h2>
         </div>
 
-        {result ? (
-          <div className="text-center py-6">
-            <div className="text-3xl font-bold font-mono text-[var(--success)] mb-2">
-              ${result.balanceUsd.toFixed(2)}
+        {newBalance !== null ? (
+          <div className="text-center py-6 space-y-2">
+            <CheckCircle className="mx-auto text-[var(--success)]" size={32} />
+            <div className="text-2xl font-bold font-mono text-[var(--success)]">
+              ${newBalance.toFixed(2)}
             </div>
             <p className="text-sm text-[var(--text-3)]">{l.topUpSuccess}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* User ID */}
+            {/* Email */}
             <div>
               <label className="text-[10px] font-semibold text-[var(--text-3)] uppercase tracking-widest block mb-1.5">
-                User ID
+                {l.topUpUserEmail}
               </label>
-              <input
-                type="text"
-                value={targetUserId}
-                onChange={(e) => setTargetUserId(e.target.value)}
-                className="focus-ring w-full border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 text-sm font-mono bg-[var(--surface-raised)] focus:border-[var(--border-hover)] transition-colors"
-              />
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-4)]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  autoFocus
+                  className="focus-ring w-full border border-[var(--border)] rounded-[var(--radius-md)] pl-8 pr-3 py-2 text-sm bg-[var(--surface-raised)] focus:border-[var(--border-hover)] transition-colors"
+                />
+              </div>
             </div>
 
             {/* Amount presets */}
@@ -95,10 +102,10 @@ export function TopUpModal({ onClose, onSuccess, currentUserId }: TopUpModalProp
                     key={p}
                     type="button"
                     onClick={() => setAmount(String(p))}
-                    className={`focus-ring flex-1 py-1.5 text-xs font-medium rounded-[var(--radius-sm)] border transition-all ${
+                    className={`focus-ring flex-1 py-1.5 text-xs font-semibold rounded-[var(--radius-sm)] border transition-all ${
                       amount === String(p)
-                        ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-transparent'
-                        : 'border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-hover)]'
+                        ? 'bg-[var(--success)] text-white border-transparent'
+                        : 'border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-hover)] bg-[var(--surface-raised)]'
                     }`}
                   >
                     ${p}
@@ -122,10 +129,12 @@ export function TopUpModal({ onClose, onSuccess, currentUserId }: TopUpModalProp
 
             <button
               type="submit"
-              disabled={loading || !amount || parseFloat(amount) <= 0}
+              disabled={loading || !email.trim() || !amount || parseFloat(amount) <= 0}
               className="focus-ring w-full py-2.5 bg-[var(--success)] text-white text-sm font-semibold rounded-[var(--radius-md)] hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
-              {loading ? t.common.saving : `${l.topUp} $${parseFloat(amount || '0').toFixed(2)}`}
+              {loading
+                ? t.common.saving
+                : `${l.topUp} $${parseFloat(amount || '0').toFixed(2)}`}
             </button>
           </form>
         )}

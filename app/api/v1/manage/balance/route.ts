@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 import { getBalance, addBalance } from '@/lib/balance';
+import { redis } from '@/lib/redis';
+import type { UserData } from '@/lib/types';
 
 /** GET /api/v1/manage/balance — get current user's balance */
 export async function GET(req: NextRequest) {
@@ -14,7 +16,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ userId: session.userId, balanceUsd: balance });
 }
 
-/** POST /api/v1/manage/balance — top up balance (admin only) */
+/** POST /api/v1/manage/balance — top up balance (admin only)
+ *  Body: { email: string, amountUsd: number }
+ *    OR: { userId: string, amountUsd: number }  (legacy)
+ */
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,13 +31,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   }
 
-  let targetUserId: string, amountUsd: number;
+  let targetEmail: string | undefined;
+  let targetUserId: string;
+  let amountUsd: number;
+
   try {
     const body = await req.json();
-    targetUserId = typeof body?.userId === 'string' ? body.userId : session.userId;
+    targetEmail = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : undefined;
+    targetUserId = typeof body?.userId === 'string' ? body.userId : '';
     amountUsd = typeof body?.amountUsd === 'number' ? body.amountUsd : 0;
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  // Resolve userId from email if provided
+  if (targetEmail) {
+    const raw = await redis.hget<string>('vault:users', targetEmail);
+    if (!raw) {
+      return NextResponse.json({ error: `User not found: ${targetEmail}` }, { status: 404 });
+    }
+    const user: UserData = typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as UserData);
+    targetUserId = user.id;
+  }
+
+  if (!targetUserId) {
+    targetUserId = session.userId;
   }
 
   if (amountUsd <= 0) {
@@ -40,5 +63,5 @@ export async function POST(req: NextRequest) {
   }
 
   const newBalance = await addBalance(targetUserId, amountUsd);
-  return NextResponse.json({ userId: targetUserId, balanceUsd: newBalance });
+  return NextResponse.json({ userId: targetUserId, email: targetEmail, balanceUsd: newBalance });
 }

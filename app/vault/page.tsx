@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe, Wallet, User } from 'lucide-react';
+import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe, Wallet, User, PlusCircle } from 'lucide-react';
 import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { VendorCard } from '@/components/VendorCard';
@@ -37,6 +37,7 @@ interface UserInfo {
   name: string;
   role: 'admin' | 'user';
 }
+
 
 export default function VaultDashboard() {
   const { t } = useLang();
@@ -102,19 +103,24 @@ export default function VaultDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Balance */}
+            {/* Balance display */}
             {balance !== null && (
-              <button
-                onClick={() => userInfo?.role === 'admin' && setShowTopUp(true)}
-                className={`focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums transition-all duration-[var(--duration-normal)] ${
-                  userInfo?.role === 'admin' ? 'hover:border-[var(--border-hover)] hover:bg-[var(--surface)] cursor-pointer' : 'cursor-default'
-                }`}
-                title={userInfo?.role === 'admin' ? t.dashboard.topUp : undefined}
-              >
+              <div className="flex items-center gap-1 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums">
                 <Wallet size={13} className="text-[var(--success)]" />
                 <span className={balance > 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
                   ${balance.toFixed(2)}
                 </span>
+              </div>
+            )}
+
+            {/* Top Up button — admin only */}
+            {userInfo?.role === 'admin' && (
+              <button
+                onClick={() => setShowTopUp(true)}
+                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--success)] hover:border-[var(--success)]/40 hover:bg-[var(--success)]/5 transition-all duration-[var(--duration-normal)]"
+              >
+                <PlusCircle size={13} />
+                {t.dashboard.topUp}
               </button>
             )}
 
@@ -248,7 +254,7 @@ export default function VaultDashboard() {
         <TopUpModal
           onClose={() => setShowTopUp(false)}
           onSuccess={() => { fetchBalance(); setShowTopUp(false); }}
-          currentUserId={userInfo?.id}
+          defaultEmail={userInfo?.email}
         />
       )}
     </div>
