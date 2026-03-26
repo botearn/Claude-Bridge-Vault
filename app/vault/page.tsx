@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe, Wallet, User, PlusCircle } from 'lucide-react';
 import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { VendorCard } from '@/components/VendorCard';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 import { TopUpModal } from '@/components/TopUpModal';
+import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
 import { useLang, LangToggle } from '@/components/LangContext';
 
 const VENDORS: VendorId[] = ['youragent', 'claude', 'yunwu'];
@@ -45,6 +46,9 @@ export default function VaultDashboard() {
   const [activeVendor, setActiveVendor] = useState<VendorId>('youragent');
   const [showCreate, setShowCreate] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [showStripe, setShowStripe] = useState(false);
+  const [paymentToast, setPaymentToast] = useState('');
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -66,6 +70,26 @@ export default function VaultDashboard() {
 
   useEffect(() => { fetchBalance(); }, [fetchBalance, refreshToken]);
 
+  // Handle Stripe redirect back
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const payment = sp.get('payment');
+    if (payment === 'success') {
+      setPaymentToast('支付成功，余额已到账！');
+      fetchBalance();
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setPaymentToast(''), 4000);
+      window.history.replaceState({}, '', '/vault');
+    } else if (payment === 'cancelled') {
+      setPaymentToast('支付已取消');
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setPaymentToast(''), 3000);
+      window.history.replaceState({}, '', '/vault');
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, [fetchBalance]);
+
   useEffect(() => {
     fetch('/api/v1/manage/analytics')
       .then(r => r.ok ? r.json() : null)
@@ -74,7 +98,9 @@ export default function VaultDashboard() {
   }, [refreshToken]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch { /* best-effort */ }
     window.location.href = '/login';
   };
 
@@ -113,7 +139,16 @@ export default function VaultDashboard() {
               </div>
             )}
 
-            {/* Top Up button — admin only */}
+            {/* Stripe Add Credits — all users */}
+            <button
+              onClick={() => setShowStripe(true)}
+              className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
+            >
+              <PlusCircle size={13} />
+              充值
+            </button>
+
+            {/* Admin manual top-up */}
             {userInfo?.role === 'admin' && (
               <button
                 onClick={() => setShowTopUp(true)}
@@ -256,6 +291,20 @@ export default function VaultDashboard() {
           onSuccess={() => { fetchBalance(); setShowTopUp(false); }}
           defaultEmail={userInfo?.email}
         />
+      )}
+
+      {showStripe && (
+        <StripeCheckoutModal onClose={() => setShowStripe(false)} currentBalance={balance ?? undefined} />
+      )}
+
+      {paymentToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-[var(--radius-md)] border text-sm font-medium shadow-vault-lg transition-all ${
+          paymentToast.includes('成功')
+            ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]'
+            : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-2)]'
+        }`}>
+          {paymentToast}
+        </div>
       )}
     </div>
   );

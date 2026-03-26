@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Wallet, Search, CheckCircle } from 'lucide-react';
 import { useLang } from './LangContext';
 
@@ -21,6 +21,16 @@ export function TopUpModal({ onClose, onSuccess, defaultEmail = '' }: TopUpModal
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newBalance, setNewBalance] = useState<number | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => {
+      document.removeEventListener('keydown', handler);
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +47,7 @@ export function TopUpModal({ onClose, onSuccess, defaultEmail = '' }: TopUpModal
       const data = await res.json();
       if (res.ok) {
         setNewBalance(data.balanceUsd);
-        setTimeout(onSuccess, 1500);
+        successTimer.current = setTimeout(onSuccess, 1500);
       } else {
         setError(data.error || 'Failed');
       }

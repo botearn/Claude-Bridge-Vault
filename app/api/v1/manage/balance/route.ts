@@ -4,6 +4,21 @@ import { getBalance, addBalance } from '@/lib/balance';
 import { redis } from '@/lib/redis';
 import type { UserData } from '@/lib/types';
 
+async function writeTopUpLog(entry: {
+  operatorId: string;
+  operatorEmail: string;
+  targetUserId: string;
+  targetEmail: string;
+  amountUsd: number;
+  newBalance: number;
+  source: 'admin' | 'stripe';
+  stripeSessionId?: string;
+}) {
+  const log = { ...entry, timestamp: new Date().toISOString() };
+  await redis.lpush('vault:topup:logs', JSON.stringify(log));
+  await redis.ltrim('vault:topup:logs', 0, 999); // keep last 1000
+}
+
 /** GET /api/v1/manage/balance — get current user's balance */
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -63,5 +78,17 @@ export async function POST(req: NextRequest) {
   }
 
   const newBalance = await addBalance(targetUserId, amountUsd);
+
+  // Write top-up log
+  await writeTopUpLog({
+    operatorId: session.userId,
+    operatorEmail: session.email,
+    targetUserId,
+    targetEmail: targetEmail ?? '',
+    amountUsd,
+    newBalance,
+    source: 'admin',
+  });
+
   return NextResponse.json({ userId: targetUserId, email: targetEmail, balanceUsd: newBalance });
 }

@@ -1,36 +1,51 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useLang } from './LangContext';
 
 const STORAGE_KEY = 'vault:sidebar';
 
-export function Sidebar() {
-  const { t } = useLang();
-  const pathname = usePathname();
+/* ── Shared sidebar state context ── */
+const SidebarCtx = createContext({ collapsed: true, toggle: () => {} });
+
+export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'open') setCollapsed(false);
+    if (localStorage.getItem(STORAGE_KEY) === 'open') setCollapsed(false);
   }, []);
 
   const toggle = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(STORAGE_KEY, next ? 'collapsed' : 'open');
+    setCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(STORAGE_KEY, next ? 'collapsed' : 'open');
+      return next;
+    });
   };
 
-  // Don't show on login page
+  return (
+    <SidebarCtx.Provider value={{ collapsed, toggle }}>
+      {children}
+    </SidebarCtx.Provider>
+  );
+}
+
+export function Sidebar() {
+  const { t } = useLang();
+  const pathname = usePathname();
+  const { collapsed, toggle } = useContext(SidebarCtx);
+
   if (pathname === '/login') return null;
 
   const links = [
-    { href: '/vault', icon: <Shield size={18} />, label: 'Dashboard' },
+    { href: '/vault', icon: <Shield size={18} />, label: t.sidebar.dashboard },
     { href: '/analytics', icon: <BarChart2 size={18} />, label: t.dashboard.analytics },
     { href: '/monitoring', icon: <Activity size={18} />, label: t.dashboard.monitoring },
     { href: '/docs', icon: <FileText size={18} />, label: t.dashboard.docs },
+    { href: '/channels', icon: <GitBranch size={18} />, label: t.sidebar.channels },
+    { href: '/pricing', icon: <Tag size={18} />, label: t.sidebar.pricing },
     { href: '/settings', icon: <Settings size={18} />, label: t.dashboard.settings },
     { href: '/query', icon: <Search size={18} />, label: t.dashboard.keyLookup.replace(' →', '') },
   ];
@@ -90,13 +105,15 @@ export function Sidebar() {
   );
 }
 
-/** Wrapper to offset page content for sidebar width */
+/** Offsets page content to avoid being hidden behind the sidebar */
 export function SidebarOffset({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { collapsed } = useContext(SidebarCtx);
+
   if (pathname === '/login') return <>{children}</>;
 
   return (
-    <div className="pl-[52px]">
+    <div className={`transition-all duration-200 ease-out ${collapsed ? 'pl-[52px]' : 'pl-[180px]'}`}>
       {children}
     </div>
   );

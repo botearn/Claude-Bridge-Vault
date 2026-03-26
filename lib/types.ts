@@ -36,6 +36,8 @@ export interface SubKeyData {
   lastUsed: string | null;
   totalQuota: number | null;   // null = unlimited
   expiresAt: string | null;    // null = no expiry
+  rpmLimit?: number | null;    // requests per minute limit (null = unlimited)
+  tpmLimit?: number | null;    // tokens per minute limit (null = unlimited)
 }
 
 export interface SubKeyRecord extends SubKeyData {

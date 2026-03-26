@@ -8,18 +8,31 @@ import { proxyRateLimit } from '@/lib/ratelimit';
 import { notify } from '@/lib/webhook';
 import { recordDailyKeyUsage } from '@/lib/daily-stats';
 import { getBalance, deductBalance } from '@/lib/balance';
+import { getChannelsForProxy, recordChannelSuccess, recordChannelFailure } from '@/lib/channels';
+import { checkRpmLimit, checkTpmLimit, getTpmUsage } from '@/lib/key-ratelimit';
+import { writeUsageLog } from '@/lib/usage-log';
+import type { VendorId } from '@/lib/types';
 
 type RouteContext = {
   params: Promise<{ vendor: string; path?: string[] }>;
 };
 
-// Simple round-robin counter per vendor for master key rotation
-const keyIndex: Record<string, number> = {};
-function pickMasterKey(vendor: string, keys: string[]): string {
-  if (keys.length === 1) return keys[0];
-  const idx = (keyIndex[vendor] ?? 0) % keys.length;
-  keyIndex[vendor] = idx + 1;
-  return keys[idx];
+/** Resolve channels for proxy: Redis channels first, fall back to env var keys */
+interface UpstreamChannel { id: string | null; apiKey: string; isProbe: boolean }
+
+async function resolveChannels(vendor: VendorId, model?: string): Promise<UpstreamChannel[]> {
+  const redisChannels = await getChannelsForProxy(vendor).catch(() => []);
+  if (redisChannels.length > 0) return redisChannels;
+
+  // Env var fallback — no circuit-breaker tracking for these
+  if (vendor === 'yunwu' && model?.startsWith('gemini')) {
+    const geminiKeys = (process.env.YUNWU_MASTER_KEY_GEMINI ?? '')
+      .split(',').map(k => k.trim()).filter(Boolean);
+    if (geminiKeys.length > 0) return geminiKeys.map(k => ({ id: null, apiKey: k, isProbe: false }));
+  }
+  return (process.env[`${vendor.toUpperCase()}_MASTER_KEY`] ?? '')
+    .split(',').map(k => k.trim()).filter(Boolean)
+    .map(k => ({ id: null, apiKey: k, isProbe: false }));
 }
 
 const parseKeyRecord = (value: unknown) => {
@@ -107,24 +120,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
   const subKey = req.headers.get('x-api-key');
 
-  // Resolve master keys — for yunwu, defer until we know the model so we can
-  // route gemini-* models to YUNWU_MASTER_KEY_GEMINI.
-  // For other vendors, resolve immediately.
-  function resolveMasterKeys(model?: string): string[] {
-    if (vendor === 'yunwu' && model?.startsWith('gemini')) {
-      const geminiKeys = (process.env.YUNWU_MASTER_KEY_GEMINI ?? '')
-        .split(',').map(k => k.trim()).filter(Boolean);
-      if (geminiKeys.length > 0) return geminiKeys;
-      // Fall back to default yunwu key if gemini-specific key not set
-    }
-    return (process.env[`${vendor.toUpperCase()}_MASTER_KEY`] ?? '')
-      .split(',').map(k => k.trim()).filter(Boolean);
-  }
-
-  // Early check: at least one key must exist for this vendor
-  const defaultKeys = resolveMasterKeys();
-  if (defaultKeys.length === 0) {
-    console.error(`Missing ${vendor.toUpperCase()}_MASTER_KEY environment variable`);
+  // Early check: at least one channel/key must exist for this vendor
+  const defaultChannels = await resolveChannels(vendor);
+  if (defaultChannels.length === 0) {
+    console.error(`No master keys configured for vendor ${vendor} (Redis channels or env var)`);
     return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
   }
 
@@ -179,6 +178,30 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    // Per-key RPM limit check
+    const rpmLimit = (keyData as { rpmLimit?: number | null }).rpmLimit;
+    if (rpmLimit != null && rpmLimit > 0) {
+      const rpm = await checkRpmLimit(subKey, rpmLimit);
+      if (!rpm.ok) {
+        return NextResponse.json(
+          { error: 'Key RPM limit exceeded', limit: rpm.limit, current: rpm.count },
+          { status: 429, headers: { 'Retry-After': '60' } },
+        );
+      }
+    }
+
+    // Per-key TPM pre-flight check (based on accumulated usage this minute)
+    const tpmLimit = (keyData as { tpmLimit?: number | null }).tpmLimit;
+    if (tpmLimit != null && tpmLimit > 0) {
+      const currentTpm = await getTpmUsage(subKey);
+      if (currentTpm >= tpmLimit) {
+        return NextResponse.json(
+          { error: 'Key TPM limit exceeded', limit: tpmLimit, current: currentTpm },
+          { status: 429, headers: { 'Retry-After': '60' } },
+        );
+      }
+    }
+
     // Balance check: if key has an owner, verify they have funds
     const keyUserId = (keyData as { userId?: string }).userId;
     if (keyUserId) {
@@ -220,16 +243,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
       } catch { /* keep original body */ }
     }
 
-    // Try master keys with round-robin + fallback on 401/429/5xx
-    const masterKeys = resolveMasterKeys(model);
+    // Resolve channels (Redis with circuit-breaker, or env var fallback)
+    const channels = await resolveChannels(vendor, model);
     let response: Response | null = null;
-    let usedKeyIdx = 0;
-    const firstKey = pickMasterKey(vendor, masterKeys);
-    const orderedKeys = [firstKey, ...masterKeys.filter(k => k !== firstKey)];
+    let usedChannel: UpstreamChannel | null = null;
+    const requestStart = Date.now();
 
-    for (let i = 0; i < orderedKeys.length; i++) {
-      const upstream = buildUpstreamRequest(vendor, orderedKeys[i], rawBody);
-      if (i === 0) console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} model=${model ?? '?'} stream=${streaming} → ${upstream.url}`);
+    for (let i = 0; i < channels.length; i++) {
+      const ch = channels[i];
+      const upstream = buildUpstreamRequest(vendor, ch.apiKey, rawBody);
+      if (i === 0) {
+        console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} model=${model ?? '?'} stream=${streaming} channel=${ch.id ?? 'env'}${ch.isProbe ? ' (probe)' : ''}`);
+      }
 
       const res = await fetch(upstream.url, {
         method: 'POST',
@@ -237,26 +262,35 @@ export async function POST(req: NextRequest, context: RouteContext) {
         body: upstream.body,
       });
 
-      if (res.ok) { response = res; usedKeyIdx = i; break; }
+      if (res.ok) {
+        response = res;
+        usedChannel = ch;
+        // Record success — resets fail count and closes circuit if open
+        if (ch.id) void recordChannelSuccess(ch.id);
+        break;
+      }
 
-      // Retry with next key on auth failure or rate limit from upstream
       const retryable = res.status === 401 || res.status === 429 || res.status >= 500;
-      if (retryable && i < orderedKeys.length - 1) {
-        console.warn(`[proxy] ${vendor} master-key#${i} ✗ HTTP ${res.status}, trying next key`);
+      const errorDesc = `HTTP ${res.status}`;
+
+      // Record failure — may open circuit breaker
+      if (ch.id) {
+        void recordChannelFailure(ch.id, errorDesc);
+      }
+
+      if (retryable && i < channels.length - 1) {
+        console.warn(`[proxy] ${vendor} channel=${ch.id ?? 'env'} ✗ ${errorDesc}, trying next`);
         continue;
       }
 
-      // Last key or non-retryable error — return upstream error
-      console.warn(`[proxy] ${vendor} key=${subKey.slice(-8)} ✗ HTTP ${res.status}`);
+      // Last channel or non-retryable error
+      console.warn(`[proxy] ${vendor} key=${subKey.slice(-8)} all channels failed, last: ${errorDesc}`);
       const errData = await res.json().catch(() => ({ error: 'Upstream error' }));
       return NextResponse.json(errData, { status: res.status });
     }
 
-    if (!response) {
-      return NextResponse.json({ error: 'All upstream keys failed' }, { status: 502 });
-    }
-    if (usedKeyIdx > 0) {
-      console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ succeeded with master-key#${usedKeyIdx}`);
+    if (!response || !usedChannel) {
+      return NextResponse.json({ error: 'All upstream channels failed' }, { status: 502 });
     }
 
     // Increment call count + lastUsed (fire-and-forget)
@@ -291,6 +325,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
           }),
         });
         void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
+        // TPM accounting
+        if (tpmLimit != null && tpmLimit > 0 && inputTokens + outputTokens > 0) {
+          void checkTpmLimit(subKey, tpmLimit, inputTokens + outputTokens);
+        }
+        // Structured usage log
+        void writeUsageLog({
+          subKey: subKey.slice(-8),
+          userId: keyUserId ?? undefined,
+          vendor,
+          model: effectiveModel ?? undefined,
+          inputTokens,
+          outputTokens,
+          costUsd: costInc,
+          latencyMs: Date.now() - requestStart,
+          status: 'success',
+          timestamp: new Date().toISOString(),
+        });
         // Deduct from user balance
         if (keyUserId && costInc > 0) {
           void deductBalance(keyUserId, costInc);
@@ -325,6 +376,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }),
     });
     void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
+    // TPM accounting
+    if (tpmLimit != null && tpmLimit > 0 && inputInc + outputInc > 0) {
+      void checkTpmLimit(subKey, tpmLimit, inputInc + outputInc);
+    }
+    // Structured usage log
+    void writeUsageLog({
+      subKey: subKey.slice(-8),
+      userId: keyUserId ?? undefined,
+      vendor,
+      model: effectiveModel ?? undefined,
+      inputTokens: inputInc,
+      outputTokens: outputInc,
+      costUsd: costInc,
+      latencyMs: Date.now() - requestStart,
+      status: 'success',
+      timestamp: new Date().toISOString(),
+    });
     // Deduct from user balance
     if (keyUserId && costInc > 0) {
       void deductBalance(keyUserId, costInc);

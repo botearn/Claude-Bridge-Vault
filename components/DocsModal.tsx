@@ -125,16 +125,70 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
           </Section>
 
+          <Section title={d.masterKeyRotation}>
+            <P>{d.masterKeyDesc}</P>
+          </Section>
+
+          <Section title={d.channelCircuitBreaker}>
+            <P>{d.channelCircuitBreakerDesc}</P>
+          </Section>
+
+          <Section title={d.billing}>
+            <P>{d.billingDesc}</P>
+            <P>{d.billingStripe}</P>
+          </Section>
+
+          <Section title={d.perKeyRateLimit}>
+            <P>{d.perKeyRateLimitDesc}</P>
+            <ul className="text-black/60 leading-loose text-[13px] list-disc list-inside space-y-1">
+              {d.perKeyRateLimitBullets.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          </Section>
+
+          <Section title={d.usageLogs}>
+            <P>{d.usageLogsDesc}</P>
+          </Section>
+
           <Section title={d.keyManagement}>
             <P>{d.keyManagementDesc}</P>
             <div className="space-y-3">
-              {[...d.endpoints, ...d.groupEndpoints, ...d.otherEndpoints].map(({ method, path, desc }) => (
+              {d.endpoints.map(({ method, path, desc }) => (
                 <div key={path + method} className="flex items-start gap-3">
                   <MethodBadge method={method} />
-                  <div>
-                    <Code>{path}</Code>
-                    <span className="ml-2 text-black/50 text-[12.5px]">{desc}</span>
-                  </div>
+                  <div><Code>{path}</Code><span className="ml-2 text-black/50 text-[12.5px]">{desc}</span></div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Channel Management API">
+            <div className="space-y-3">
+              {d.channelEndpoints.map(({ method, path, desc }) => (
+                <div key={path + method} className="flex items-start gap-3">
+                  <MethodBadge method={method} />
+                  <div><Code>{path}</Code><span className="ml-2 text-black/50 text-[12.5px]">{desc}</span></div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={d.groupManagement}>
+            <div className="space-y-3">
+              {d.groupEndpoints.map(({ method, path, desc }) => (
+                <div key={path + method} className="flex items-start gap-3">
+                  <MethodBadge method={method} />
+                  <div><Code>{path}</Code><span className="ml-2 text-black/50 text-[12.5px]">{desc}</span></div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Billing, Logs & Other APIs">
+            <div className="space-y-3">
+              {d.otherEndpoints.map(({ method, path, desc }) => (
+                <div key={path + method} className="flex items-start gap-3">
+                  <MethodBadge method={method} />
+                  <div><Code>{path}</Code><span className="ml-2 text-black/50 text-[12.5px]">{desc}</span></div>
                 </div>
               ))}
             </div>
@@ -146,21 +200,13 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
           <Section title={d.quotaExpiry}>
             <ul className="text-black/60 leading-loose text-[13px] list-disc list-inside space-y-1">
-              {d.quotaBullets.map((b, i) => (
-                <li key={i}>{b}</li>
-              ))}
+              {d.quotaBullets.map((b, i) => <li key={i}>{b}</li>)}
             </ul>
-          </Section>
-
-          <Section title={d.masterKeyRotation}>
-            <P>{d.masterKeyDesc}</P>
-            <Block>{`CLAUDE_MASTER_KEY=sk-ant-key1,sk-ant-key2,sk-ant-key3`}</Block>
           </Section>
 
           <Section title={d.webhook}>
             <P>{d.webhookDesc}</P>
-            <Block>{`WEBHOOK_URL=https://hooks.example.com/xxx
-FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx`}</Block>
+            <Block>{`WEBHOOK_URL=https://hooks.example.com/xxx\nFEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx`}</Block>
           </Section>
 
           <Section title={d.errorCodes}>
@@ -174,10 +220,11 @@ FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx`}</Block>
                 </thead>
                 <tbody className="divide-y divide-black/5 text-[12.5px]">
                   <tr><td className="px-4 py-2 font-mono">401</td><td className="px-4 py-2 text-black/60">Missing API Key</td></tr>
-                  <tr><td className="px-4 py-2 font-mono">403</td><td className="px-4 py-2 text-black/60">Invalid key / Key expired</td></tr>
-                  <tr><td className="px-4 py-2 font-mono">429</td><td className="px-4 py-2 text-black/60">Rate limit / Quota exceeded</td></tr>
+                  <tr><td className="px-4 py-2 font-mono">402</td><td className="px-4 py-2 text-black/60">Insufficient balance</td></tr>
+                  <tr><td className="px-4 py-2 font-mono">403</td><td className="px-4 py-2 text-black/60">Invalid key / Key expired / Model mismatch</td></tr>
+                  <tr><td className="px-4 py-2 font-mono">429</td><td className="px-4 py-2 text-black/60">Rate limit / Quota exceeded / RPM or TPM limit exceeded</td></tr>
                   <tr><td className="px-4 py-2 font-mono">500</td><td className="px-4 py-2 text-black/60">Service misconfigured</td></tr>
-                  <tr><td className="px-4 py-2 font-mono">502</td><td className="px-4 py-2 text-black/60">All upstream keys failed</td></tr>
+                  <tr><td className="px-4 py-2 font-mono">502</td><td className="px-4 py-2 text-black/60">All upstream channels failed</td></tr>
                 </tbody>
               </table>
             </div>
@@ -185,9 +232,7 @@ FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx`}</Block>
 
           <Section title={d.keyFormat}>
             <P>{d.keyFormatDesc}</P>
-            <Block>{`sk-vault-{vendor}-{random8chars}
-sk-vault-claude-a1b2c3d4
-sk-vault-yunwu-z9y8x7w6`}</Block>
+            <Block>{`sk-vault-{vendor}-{random8chars}\nsk-vault-claude-a1b2c3d4\nsk-vault-yunwu-z9y8x7w6`}</Block>
           </Section>
 
         </div>

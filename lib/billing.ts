@@ -43,7 +43,7 @@ export function extractTokenUsage(vendor: VendorId, data: UsageLike): TokenUsage
 // - YourAgent: Claude official × 4% (YOURAGENT_PRICE_MULTIPLIER) — update if pricing changes
 // - Yunwu: OpenAI official pricing — TODO: update to Yunwu's actual reseller pricing when available
 
-const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
+export const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
   // Opus 4.6 / 4
   'claude-opus-4-6':           { input: 15.0,  output: 75.0  },
   'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
@@ -65,7 +65,7 @@ const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
 };
 
 // Yunwu proxies OpenAI-compatible models (includes all vendors routed through Yunwu)
-const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: number }> = {
+export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: number }> = {
   // OpenAI
   'gpt-4.1':             { input: 2.00,  output: 8.0   },
   'gpt-4.1-mini':        { input: 0.40,  output: 1.60  },
@@ -110,7 +110,7 @@ const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output
 };
 
 // YourAgent pricing rule: same token usage costs 4% of official Claude.
-const YOURAGENT_PRICE_MULTIPLIER = 0.04;
+export const YOURAGENT_PRICE_MULTIPLIER = 0.04;
 
 function lookupPrice(vendor: string, model: string | undefined): { input: number; output: number } {
   const table = VENDOR_PRICE_TABLES[vendor] ?? ANTHROPIC_PRICES;
