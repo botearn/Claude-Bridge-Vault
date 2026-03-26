@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe, Wallet, User, PlusCircle } from 'lucide-react';
-import { VENDOR_CONFIG } from '@/lib/vendors';
-import type { VendorId, KeyScope } from '@/lib/types';
-import { VendorCard } from '@/components/VendorCard';
+import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal, LayoutDashboard } from 'lucide-react';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 import { TopUpModal } from '@/components/TopUpModal';
 import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
+import { KeyTable } from '@/components/KeyTable';
 import { useLang, LangToggle } from '@/components/LangContext';
+import { VENDOR_CONFIG } from '@/lib/vendors';
+import type { SubKeyData, VendorId, KeyScope } from '@/lib/types';
 
-const VENDORS: VendorId[] = ['youragent', 'claude', 'yunwu'];
+interface KeyRow extends SubKeyData {
+  key: string;
+}
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -25,13 +27,6 @@ function fmtUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-interface AnalyticsSummary {
-  totalCalls: number;
-  totalTokens: number;
-  totalCostUsd: number;
-  activeKeys: number;
-}
-
 interface UserInfo {
   id: string;
   email: string;
@@ -39,20 +34,21 @@ interface UserInfo {
   role: 'admin' | 'user';
 }
 
-
 export default function VaultDashboard() {
   const { t } = useLang();
-  const [activeScope, setActiveScope] = useState<KeyScope>('internal');
-  const [activeVendor, setActiveVendor] = useState<VendorId>('youragent');
   const [showCreate, setShowCreate] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
   const [showStripe, setShowStripe] = useState(false);
   const [paymentToast, setPaymentToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
+  const [keys, setKeys] = useState<KeyRow[]>([]);
+  const [loadingKeys, setLoadingKeys] = useState(false);
+  // Admin-only filters
+  const [adminVendor, setAdminVendor] = useState<VendorId | ''>('');
+  const [adminScope, setAdminScope] = useState<KeyScope | ''>('');
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -68,7 +64,32 @@ export default function VaultDashboard() {
       .catch(() => {});
   }, []);
 
+  const fetchKeys = useCallback(async () => {
+    setLoadingKeys(true);
+    try {
+      const params = new URLSearchParams();
+      if (adminVendor) params.set('vendor', adminVendor);
+      if (adminScope) params.set('scope', adminScope);
+      const qs = params.toString();
+      const res = await fetch(`/api/v1/manage/keys${qs ? `?${qs}` : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        const rows: KeyRow[] = Object.entries(data).map(([key, val]) => ({
+          key,
+          ...(val as SubKeyData),
+        }));
+        rows.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+        setKeys(rows);
+      }
+    } catch {
+      setKeys([]);
+    } finally {
+      setLoadingKeys(false);
+    }
+  }, [adminVendor, adminScope]);
+
   useEffect(() => { fetchBalance(); }, [fetchBalance, refreshToken]);
+  useEffect(() => { fetchKeys(); }, [fetchKeys, refreshToken, adminVendor, adminScope]);
 
   // Handle Stripe redirect back
   useEffect(() => {
@@ -76,26 +97,24 @@ export default function VaultDashboard() {
     const sp = new URLSearchParams(window.location.search);
     const payment = sp.get('payment');
     if (payment === 'success') {
-      setPaymentToast('支付成功，余额已到账！');
+      setPaymentToast(t.dashboard.paymentSuccess);
       fetchBalance();
       if (toastTimer.current) clearTimeout(toastTimer.current);
       toastTimer.current = setTimeout(() => setPaymentToast(''), 4000);
       window.history.replaceState({}, '', '/vault');
     } else if (payment === 'cancelled') {
-      setPaymentToast('支付已取消');
+      setPaymentToast(t.dashboard.paymentCancelled);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       toastTimer.current = setTimeout(() => setPaymentToast(''), 3000);
       window.history.replaceState({}, '', '/vault');
     }
     return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchBalance]);
 
-  useEffect(() => {
-    fetch('/api/v1/manage/analytics')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => data && setSummary(data.summary))
-      .catch(() => {});
-  }, [refreshToken]);
+  const handleCreated = useCallback(() => {
+    setRefreshToken((n) => n + 1);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -104,9 +123,16 @@ export default function VaultDashboard() {
     window.location.href = '/login';
   };
 
-  const handleCreated = useCallback(() => {
-    setRefreshToken((n) => n + 1);
-  }, []);
+  // Stats derived from loaded keys
+  const stats = keys.reduce(
+    (acc, k) => {
+      acc.totalCalls += k.usage || 0;
+      acc.totalTokens += (k.inputTokens || 0) + (k.outputTokens || 0);
+      acc.totalCost += k.costUsd || 0;
+      return acc;
+    },
+    { totalCalls: 0, totalTokens: 0, totalCost: 0 },
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans">
@@ -124,12 +150,12 @@ export default function VaultDashboard() {
                   v2
                 </span>
               </h1>
-              <p className="text-[13px] text-[var(--text-2)] mt-0.5">{t.dashboard.subtitle}</p>
+              <p className="text-[13px] text-[var(--text-2)] mt-0.5">API key management</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Balance display */}
+            {/* Balance */}
             {balance !== null && (
               <div className="flex items-center gap-1 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums">
                 <Wallet size={13} className="text-[var(--success)]" />
@@ -139,13 +165,13 @@ export default function VaultDashboard() {
               </div>
             )}
 
-            {/* Stripe Add Credits — all users */}
+            {/* Add Credits */}
             <button
               onClick={() => setShowStripe(true)}
               className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
             >
               <PlusCircle size={13} />
-              充值
+              {t.dashboard.recharge}
             </button>
 
             {/* Admin manual top-up */}
@@ -159,18 +185,33 @@ export default function VaultDashboard() {
               </button>
             )}
 
-            {/* User */}
+            {/* User info */}
             {userInfo && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm">
                 <User size={13} className="text-[var(--text-3)]" />
                 <span className="text-[var(--text-2)] max-w-[100px] truncate">{userInfo.name}</span>
                 {userInfo.role === 'admin' && (
-                  <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">admin</span>
+                  <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">
+                    {t.dashboard.adminBadge}
+                  </span>
                 )}
               </div>
             )}
 
+            {/* Admin shortcuts */}
+            {userInfo?.role === 'admin' && (
+              <a
+                href="/analytics"
+                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
+                title="Admin analytics"
+              >
+                <LayoutDashboard size={13} />
+                <span className="text-xs">Admin</span>
+              </a>
+            )}
+
             <LangToggle />
+
             <button
               onClick={() => setShowCreate(true)}
               className="focus-ring flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-fg)] text-sm font-semibold rounded-[var(--radius-md)] hover:opacity-90 transition-opacity duration-[var(--duration-fast)]"
@@ -178,9 +219,10 @@ export default function VaultDashboard() {
               <Plus size={15} strokeWidth={2.5} />
               {t.dashboard.newKey}
             </button>
+
             <button
               onClick={handleLogout}
-              title="Sign out"
+              title={t.dashboard.signOut}
               className="focus-ring p-2.5 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--text)] hover:border-[var(--border-hover)] hover:bg-[var(--surface)] transition-all duration-[var(--duration-normal)]"
             >
               <LogOut size={15} />
@@ -188,21 +230,14 @@ export default function VaultDashboard() {
           </div>
         </header>
 
-        {/* Analytics Summary */}
+        {/* Stats */}
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-vault mb-6 px-5 py-4">
-          <div className="flex items-center justify-between mb-3.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-3)]">{t.dashboard.analytics}</span>
-            <a href="/analytics" className="focus-ring flex items-center gap-1 text-[10px] text-[var(--text-4)] hover:text-[var(--text-2)] transition-colors">
-              <ExternalLink size={10} />
-              <span>{t.analytics.title}</span>
-            </a>
-          </div>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { icon: <Zap size={12} />, label: t.analytics.totalCalls, value: summary ? fmtNum(summary.totalCalls) : '—' },
-              { icon: <BarChart2 size={12} />, label: t.analytics.totalTokens, value: summary ? fmtNum(summary.totalTokens) : '—' },
-              { icon: <TrendingUp size={12} />, label: t.analytics.estCost, value: summary ? fmtUsd(summary.totalCostUsd) : '—' },
-              { icon: <Key size={12} />, label: t.analytics.activeKeys, value: summary ? String(summary.activeKeys) : '—' },
+              { icon: <Zap size={12} />, label: t.analytics.totalCalls, value: fmtNum(stats.totalCalls) },
+              { icon: <BarChart2 size={12} />, label: t.analytics.totalTokens, value: fmtNum(stats.totalTokens) },
+              { icon: <TrendingUp size={12} />, label: t.analytics.estCost, value: fmtUsd(stats.totalCost) },
+              { icon: <Key size={12} />, label: t.analytics.activeKeys, value: String(keys.length) },
             ].map(({ icon, label, value }) => (
               <div key={label} className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5 text-[var(--text-3)]">
@@ -215,65 +250,108 @@ export default function VaultDashboard() {
           </div>
         </div>
 
-        {/* Scope Toggle + Vendor Rail */}
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-4">
-            {/* Scope */}
-            <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-0.5">
-              {(['internal', 'external'] as KeyScope[]).map((s) => {
-                const active = activeScope === s;
-                const isInternal = s === 'internal';
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setActiveScope(s)}
-                    className={`focus-ring flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium rounded-[7px] transition-all duration-[var(--duration-normal)] ease-out-expo ${
-                      active
-                        ? isInternal
-                          ? 'bg-[var(--scope-internal)] text-white shadow-sm'
-                          : 'bg-[var(--scope-external)] text-white shadow-sm'
-                        : 'text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--surface-hover)]'
-                    }`}
-                  >
-                    {isInternal ? <Lock size={12} /> : <Globe size={12} />}
-                    {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
-                  </button>
-                );
-              })}
+        {/* Admin filter bar — only visible to admins */}
+        {userInfo?.role === 'admin' && (
+          <div className="mb-4 flex items-center gap-3 px-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-4)]">
+              <SlidersHorizontal size={11} />
+              Admin filters
             </div>
 
-            {/* Scope description */}
-            <span className="text-[11px] text-[var(--text-4)]">
-              {activeScope === 'internal' ? t.dashboard.scopeInternalDesc : t.dashboard.scopeExternalDesc}
-            </span>
-
-            {/* Divider */}
-            <div className="w-px h-6 bg-[var(--border)] ml-auto" />
-
-            {/* Vendor Rail */}
-            <div className="flex gap-1.5">
-              {VENDORS.map((v) => (
+            {/* Vendor filter */}
+            <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-0.5 gap-0.5">
+              {([['', 'All vendors'], ...Object.entries(VENDOR_CONFIG).map(([k, v]) => [k, v.label])] as [string, string][]).map(([val, label]) => (
                 <button
-                  key={v}
-                  onClick={() => setActiveVendor(v)}
-                  className={`focus-ring flex items-center gap-2 px-3.5 py-2 rounded-[var(--radius-md)] text-[13px] font-medium transition-all duration-[var(--duration-normal)] ease-out-expo border ${
-                    activeVendor === v
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-transparent shadow-sm'
-                      : 'border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] bg-[var(--surface)]'
+                  key={val}
+                  onClick={() => setAdminVendor(val as VendorId | '')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-all ${
+                    adminVendor === val
+                      ? 'bg-[var(--text)] text-white shadow-sm'
+                      : 'text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
-                  <span>{VENDOR_CONFIG[v].label}</span>
-                  <span className={`text-[10px] font-mono ${activeVendor === v ? 'text-white/40' : 'text-[var(--text-4)]'}`}>
-                    {VENDOR_CONFIG[v].keyPrefix}
-                  </span>
+                  {label}
                 </button>
               ))}
             </div>
+
+            {/* Scope filter */}
+            <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-0.5 gap-0.5">
+              {([['', 'All scopes'], ['internal', 'Internal'], ['external', 'External']] as [string, string][]).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setAdminScope(val as KeyScope | '')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-all ${
+                    adminScope === val
+                      ? val === 'internal'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : val === 'external'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'bg-[var(--text)] text-white shadow-sm'
+                      : 'text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {(adminVendor || adminScope) && (
+              <button
+                onClick={() => { setAdminVendor(''); setAdminScope(''); }}
+                className="text-[10px] text-[var(--text-4)] hover:text-[var(--text-2)] transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Keys panel */}
+        <div className="border border-[var(--border)] rounded-[var(--radius-xl)] bg-[var(--surface)] shadow-vault overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Key size={14} className="text-[var(--text-3)]" />
+              <span className="font-semibold text-[15px]">
+                {adminVendor || adminScope
+                  ? `Keys · ${[adminVendor, adminScope].filter(Boolean).join(' / ')}`
+                  : 'My Keys'}
+              </span>
+              {keys.length > 0 && (
+                <span className="text-[11px] font-mono text-[var(--text-4)] bg-[var(--surface-raised)] px-2 py-0.5 rounded border border-[var(--border)]">
+                  {keys.length}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="focus-ring flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
+            >
+              <Plus size={12} />
+              New Key
+            </button>
+          </div>
+
+          <div className="px-4 py-3">
+            {loadingKeys ? (
+              <div className="text-center py-10 text-sm text-[var(--text-3)]">{t.common.loading}</div>
+            ) : keys.length === 0 ? (
+              <div className="text-center py-12">
+                <Key size={28} className="mx-auto text-[var(--text-4)] mb-3" />
+                <p className="text-sm text-[var(--text-3)] mb-4">No keys yet</p>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--accent-fg)] text-sm font-semibold rounded-[var(--radius-md)] hover:opacity-90 transition-opacity"
+                >
+                  <Plus size={14} />
+                  Create your first key
+                </button>
+              </div>
+            ) : (
+              <KeyTable keys={keys} onDeleted={fetchKeys} />
+            )}
           </div>
         </div>
-
-        {/* Active Vendor Card */}
-        <VendorCard key={`${activeVendor}-${activeScope}-${refreshToken}`} vendor={activeVendor} scope={activeScope} />
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-black/5">
@@ -282,7 +360,7 @@ export default function VaultDashboard() {
       </div>
 
       {showCreate && (
-        <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} defaultScope={activeScope} />
+        <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
       )}
 
       {showTopUp && (
@@ -299,7 +377,7 @@ export default function VaultDashboard() {
 
       {paymentToast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-[var(--radius-md)] border text-sm font-medium shadow-vault-lg transition-all ${
-          paymentToast.includes('成功')
+          paymentToast.includes('success') || paymentToast.includes('成功')
             ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]'
             : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-2)]'
         }`}>

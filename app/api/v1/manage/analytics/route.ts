@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { fetchYASync } from '@/lib/youragent-sync';
+import { getUsageLogs } from '@/lib/usage-log';
 import type { SubKeyData } from '@/lib/types';
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
+}
 
 function parseSafe(v: unknown): SubKeyData | null {
   if (!v) return null;
@@ -26,13 +33,14 @@ export async function GET(req: Request) {
   const dates = last30Days();
   const now = new Date();
 
-  // Parallel fetch — cuts 3 sequential ~6s Redis round-trips down to ~6s total
-  const [rawKeys, rawCounts, yaRaw] = await Promise.all([
+  // Parallel fetch — keys, daily counts, youragent sync, and recent latency logs
+  const [rawKeys, rawCounts, yaRaw, recentLogs] = await Promise.all([
     redis.hgetall<Record<string, string>>('vault:subkeys'),
     dates.length > 0
       ? redis.mget<(string | null)[]>(...dates.map(d => `vault:daily:calls:${d}`) as [string, ...string[]])
       : Promise.resolve([] as (string | null)[]),
     redis.get('vault:youragent:sync').catch(() => null),
+    getUsageLogs({ limit: 200 }).catch(() => []),
   ]);
 
   const url = new URL(req.url);
@@ -93,11 +101,33 @@ export async function GET(req: Request) {
     costUsd: k.costUsd,
   }));
 
-  const dailyCalls = dates.map(d => ({ date: d, calls: 0 }));
-  if (rawCounts) {
-    rawCounts.forEach((v, i) => {
-      if (v != null) dailyCalls[i].calls = parseInt(String(v), 10);
+  // When a scope filter is active, the global daily counter can't be filtered —
+  // compute daily calls from per-key hashes instead so the chart matches the stats.
+  let dailyCalls: { date: string; calls: number }[];
+  if (scopeFilter) {
+    const scopedKeySet = new Set(keys.map(k => k.key));
+    const dailyHashes = await Promise.all(
+      dates.map(d => redis.hgetall<Record<string, string>>(`vault:daily:keys:${d}`).catch(() => null))
+    );
+    dailyCalls = dates.map((date, i) => {
+      const hash = dailyHashes[i] ?? {};
+      let calls = 0;
+      for (const [k, v] of Object.entries(hash)) {
+        if (!scopedKeySet.has(k)) continue;
+        try {
+          const parsed = typeof v === 'string' ? JSON.parse(v) : v;
+          calls += parsed.calls || 0;
+        } catch { /* skip malformed */ }
+      }
+      return { date, calls };
     });
+  } else {
+    dailyCalls = dates.map(d => ({ date: d, calls: 0 }));
+    if (rawCounts) {
+      rawCounts.forEach((v, i) => {
+        if (v != null) dailyCalls[i].calls = parseInt(String(v), 10);
+      });
+    }
   }
 
   let yaSync = null;
@@ -128,8 +158,17 @@ export async function GET(req: Request) {
     });
   }
 
+  // Latency percentiles from recent successful logs
+  const latencies = recentLogs
+    .filter(l => l.status === 'success' && l.latencyMs > 0)
+    .map(l => l.latencyMs)
+    .sort((a, b) => a - b);
+  const latencyP50 = percentile(latencies, 50);
+  const latencyP95 = percentile(latencies, 95);
+  const latencyP99 = percentile(latencies, 99);
+
   return NextResponse.json({
-    summary: { totalCalls, totalTokens: totalInputTokens + totalOutputTokens, totalCostUsd, activeKeys: keys.length, keysNearQuota, expiringKeys },
+    summary: { totalCalls, totalTokens: totalInputTokens + totalOutputTokens, totalCostUsd, activeKeys: keys.length, keysNearQuota, expiringKeys, latencyP50, latencyP95, latencyP99 },
     byVendor,
     keyHealth,
     dailyCalls,

@@ -1,51 +1,33 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Lock, Globe } from 'lucide-react';
-import { VENDOR_CONFIG, VENDOR_MODELS, isValidVendor } from '@/lib/vendors';
-import type { VendorId, KeyScope } from '@/lib/types';
+import { X } from 'lucide-react';
+import { VENDOR_MODELS } from '@/lib/vendors';
+import type { VendorId } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
-import { useLang } from './LangContext';
 import { emitVaultSync } from '@/lib/vaultSync';
-import { ModelSelector } from './ModelSelector';
 
-interface GroupOption {
-  key: string;
-  label: string;
-}
+// All models come from yunwu (broadest coverage: Claude, OpenAI, Google, etc.)
+const ALL_MODELS = VENDOR_MODELS.yunwu;
 
-interface ModelOption {
-  label: string;
-  value: string;
-  group?: string;
+// Derive vendor from model — claude models go through youragent (cheaper), rest via yunwu
+function modelToVendor(model: string): VendorId {
+  if (model.startsWith('claude-')) return 'youragent';
+  return 'yunwu';
 }
 
 interface CreateKeyModalProps {
   onClose: () => void;
   onCreated: () => void;
-  defaultScope?: KeyScope;
 }
 
-export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }: CreateKeyModalProps) {
-  const { t } = useLang();
-  const [scope, setScope] = useState<KeyScope>(defaultScope);
-  const [vendor, setVendor] = useState<VendorId>('claude');
-  const [group, setGroup] = useState('');
-  const [newGroupId, setNewGroupId] = useState('');
-  const [newGroupLabel, setNewGroupLabel] = useState('');
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const [model, setModel] = useState('');
-  const [models, setModels] = useState<ModelOption[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
+export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
+  const [model, setModel] = useState(ALL_MODELS[0]?.value ?? '');
   const [name, setName] = useState('');
-  const [totalQuota, setTotalQuota] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
-  const [groups, setGroups] = useState<GroupOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [copiedCurl, setCopiedCurl] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -53,105 +35,18 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
-  useEffect(() => {
-    loadGroups(vendor);
-    loadModels(vendor);
-  }, [vendor]);
-
-  const loadModels = async (v: VendorId) => {
-    setModelsLoading(true);
-    try {
-      const res = await fetch(`/api/v1/manage/models?vendor=${v}`);
-      if (res.ok) {
-        const data = await res.json();
-        const fetched: ModelOption[] = data.models ?? [];
-        setModels(fetched);
-        setModel(fetched[0]?.value ?? '');
-      } else {
-        // Fallback to hardcoded
-        const fallback = VENDOR_MODELS[v] ?? [];
-        setModels(fallback);
-        setModel(fallback[0]?.value ?? '');
-      }
-    } catch {
-      const fallback = VENDOR_MODELS[v] ?? [];
-      setModels(fallback);
-      setModel(fallback[0]?.value ?? '');
-    } finally {
-      setModelsLoading(false);
-    }
-  };
-
-  const loadGroups = async (v: VendorId) => {
-    try {
-      const res = await fetch(`/api/v1/manage/groups?vendor=${v}`);
-      const data = await res.json();
-      const opts: GroupOption[] = Object.entries(data).map(([key, val]) => ({
-        key: key.split(':')[1] || key,
-        label: (val as { label: string }).label,
-      }));
-      setGroups(opts);
-      setGroup(opts[0]?.key || '');
-    } catch {
-      setGroups([]);
-    }
-  };
-
-  const buildCurlSnippet = (subKey: string, v: VendorId) => {
-    const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + VENDOR_CONFIG[v].basePath;
-    const selectedModel = model || models[0]?.value || 'gpt-4o';
-
-    if (v === 'yunwu') {
-      return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"${selectedModel}","messages":[{"role":"user","content":"Hello"}]}'`;
-    }
-
-    return `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"${selectedModel}","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`;
-  };
-
-  const handleCopyKey = async () => {
-    if (!createdKey) return;
-    await navigator.clipboard.writeText(createdKey);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
-
-  const handleCopyCurl = async () => {
-    if (!createdKey) return;
-    const snippet = buildCurlSnippet(createdKey, vendor);
-    await navigator.clipboard.writeText(snippet);
-    setCopiedCurl(true);
-    setTimeout(() => setCopiedCurl(false), 2000);
-  };
-
-  const handleCreateGroup = async () => {
-    if (!newGroupId.trim() || !newGroupLabel.trim()) return;
-    setError('');
-    try {
-      const res = await fetch('/api/v1/manage/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vendor, groupId: newGroupId.trim(), label: newGroupLabel.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || t.createKeyModal.errorNetworkGroup);
-        return;
-      }
-      await loadGroups(vendor);
-      setGroup(newGroupId.trim());
-      setNewGroupId('');
-      setNewGroupLabel('');
-      setCreatingGroup(false);
-      emitVaultSync({ source: 'create-group', vendor, group: newGroupId.trim() });
-    } catch {
-      setError(t.createKeyModal.errorNetworkGroup);
-    }
-  };
+  // Group models by provider for the select dropdown
+  const grouped = ALL_MODELS.reduce<Record<string, typeof ALL_MODELS>>((acc, m) => {
+    const g = m.group ?? 'Other';
+    (acc[g] ??= []).push(m);
+    return acc;
+  }, {});
 
   const handleSubmit = async () => {
-    if (!name.trim() || !group) return;
+    if (!name.trim() || !model) return;
     setLoading(true);
     setError('');
+    const vendor = modelToVendor(model);
     try {
       const res = await fetch('/api/v1/manage/keys', {
         method: 'POST',
@@ -159,33 +54,38 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
         body: JSON.stringify({
           name: name.trim(),
           vendor,
-          group,
-          scope,
-          model: model || undefined,
-          totalQuota: totalQuota ? parseInt(totalQuota, 10) : null,
-          expiresAt: expiresAt || null,
+          group: 'my-keys',
+          scope: 'external',
+          model,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || t.createKeyModal.errorNetwork);
+        setError(data.error || 'Failed to create key');
         return;
       }
       setCreatedKey(data.subKey);
-      emitVaultSync({ source: 'create-key', vendor, group });
+      emitVaultSync({ source: 'create-key', vendor, group: 'my-keys' });
       onCreated();
     } catch {
-      setError(t.createKeyModal.errorNetwork);
+      setError('Network error, please try again');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCopy = () => {
+    if (!createdKey) return;
+    navigator.clipboard.writeText(createdKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50">
       <div className="bg-white text-black border border-black/10 rounded-2xl w-full max-w-md p-8 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold">{t.createKeyModal.title}</h3>
+          <h3 className="text-lg font-semibold">Create API Key</h3>
           <button onClick={onClose} className="text-black/40 hover:text-black transition-colors">
             <X size={20} />
           </button>
@@ -193,214 +93,76 @@ export function CreateKeyModal({ onClose, onCreated, defaultScope = 'internal' }
 
         {createdKey ? (
           <div className="space-y-4">
-            <div className="text-sm text-black/60 mb-2">{t.createKeyModal.keyCreated}</div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleCopyKey}
-                className="py-2.5 border border-black rounded-lg text-sm font-semibold hover:bg-black hover:text-white transition-colors"
-              >
-                {copiedKey ? t.createKeyModal.copied : t.createKeyModal.copyKey}
-              </button>
-              <button
-                onClick={handleCopyCurl}
-                className="py-2.5 border border-black/20 rounded-lg text-sm font-semibold hover:bg-black hover:text-white hover:border-black transition-colors"
-              >
-                {copiedCurl ? t.createKeyModal.copied : t.createKeyModal.copyCurl}
-              </button>
+            <p className="text-sm text-black/60">
+              Key created! Copy it now — it won&apos;t be shown again.
+            </p>
+            <div className="font-mono text-xs bg-black/5 rounded-lg p-3 break-all select-all">
+              {createdKey}
             </div>
-
-            <ShareSnippet subKey={createdKey} vendor={vendor} />
+            <button
+              onClick={handleCopy}
+              className="w-full py-2.5 border border-black rounded-lg text-sm font-semibold hover:bg-black hover:text-white transition-colors"
+            >
+              {copied ? '✓ Copied!' : 'Copy Key'}
+            </button>
+            <ShareSnippet subKey={createdKey} vendor={modelToVendor(model)} />
             <button
               onClick={onClose}
-              className="w-full py-3 border border-black rounded-lg text-sm font-semibold hover:bg-black hover:text-white transition-colors mt-4"
+              className="w-full py-2.5 border border-black/15 rounded-lg text-sm text-black/60 hover:bg-black/5 transition-colors"
             >
-              {t.common.done}
+              Done
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Scope Select */}
+          <div className="space-y-5">
+            {/* Model — primary required field */}
             <div>
-              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                {t.createKeyModal.scope}
+              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-2">
+                Model <span className="text-red-400">*</span>
               </label>
-              <div className="flex gap-2">
-                {(['internal', 'external'] as KeyScope[]).map((s) => {
-                  const isInternal = s === 'internal';
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => setScope(s)}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-center gap-1.5 ${
-                        scope === s
-                          ? isInternal
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-amber-600 text-white border-amber-600'
-                          : 'border-black/10 hover:border-black/30'
-                      }`}
-                    >
-                      {isInternal ? <Lock size={11} /> : <Globe size={11} />}
-                      {isInternal ? t.dashboard.scopeInternal : t.dashboard.scopeExternal}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-black/40 mt-1.5">
-                {scope === 'internal' ? t.createKeyModal.scopeInternalHint : t.createKeyModal.scopeExternalHint}
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full border border-black/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-black/40 bg-white"
+              >
+                {Object.entries(grouped).map(([groupName, groupModels]) => (
+                  <optgroup key={groupName} label={groupName}>
+                    {groupModels.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <p className="text-[10px] text-black/35 mt-1.5">
+                This key will only work with the selected model.
               </p>
             </div>
 
-            {/* Vendor Select */}
+            {/* Key Name */}
             <div>
-              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                {t.createKeyModal.vendor}
-              </label>
-              <div className="flex gap-2">
-                {(Object.keys(VENDOR_CONFIG) as VendorId[]).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => { if (isValidVendor(v)) setVendor(v); }}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      vendor === v
-                        ? 'bg-black text-white border-black'
-                        : 'border-black/10 hover:border-black/30'
-                    }`}
-                  >
-                    {VENDOR_CONFIG[v].label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Model Select */}
-            {models.length > 0 && (
-              <div>
-                <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                  {t.createKeyModal.model}{' '}
-                  <span className="normal-case font-normal">({t.createKeyModal.optional})</span>
-                </label>
-                <ModelSelector
-                  models={models}
-                  value={model}
-                  onChange={setModel}
-                  loading={modelsLoading}
-                />
-              </div>
-            )}
-
-            {/* Group Select */}
-            <div>
-              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                {t.createKeyModal.group}
-              </label>
-              {groups.length > 0 && (
-                <select
-                  value={group}
-                  onChange={(e) => setGroup(e.target.value)}
-                  className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                >
-                  {groups.map((g) => (
-                    <option key={g.key} value={g.key}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {creatingGroup ? (
-                <div className="mt-2 space-y-2">
-                  <input
-                    type="text"
-                    placeholder={t.createKeyModal.groupIdPlaceholder}
-                    value={newGroupId}
-                    onChange={(e) => setNewGroupId(e.target.value)}
-                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                  />
-                  <input
-                    type="text"
-                    placeholder={t.createKeyModal.groupLabelPlaceholder}
-                    value={newGroupLabel}
-                    onChange={(e) => setNewGroupLabel(e.target.value)}
-                    className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCreateGroup}
-                      className="flex-1 py-2 text-xs font-semibold bg-black text-white rounded-lg hover:bg-black/80 transition-colors"
-                    >
-                      {t.createKeyModal.createGroup}
-                    </button>
-                    <button
-                      onClick={() => setCreatingGroup(false)}
-                      className="flex-1 py-2 text-xs font-semibold border border-black/10 rounded-lg hover:border-black/30 transition-colors"
-                    >
-                      {t.common.cancel}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setCreatingGroup(true)}
-                  className="mt-2 flex items-center gap-1.5 text-xs text-black/40 hover:text-black transition-colors"
-                >
-                  <Plus size={12} /> {t.createKeyModal.newGroup}
-                </button>
-              )}
-            </div>
-
-            {/* Name Input */}
-            <div>
-              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                {t.createKeyModal.keyName}
+              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-2">
+                Key Name <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
-                placeholder={t.createKeyModal.keyNamePlaceholder}
+                placeholder="e.g. My chatbot, Project X"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                className="w-full border border-black/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-black/40"
               />
-            </div>
-
-            {/* Quota + Expiry */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                  {t.createKeyModal.totalQuota}{' '}
-                  <span className="normal-case font-normal">({t.createKeyModal.optional})</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder={t.common.unlimited}
-                  value={totalQuota}
-                  onChange={(e) => setTotalQuota(e.target.value)}
-                  className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1.5">
-                  {t.createKeyModal.expiresAt}{' '}
-                  <span className="normal-case font-normal">({t.createKeyModal.optional})</span>
-                </label>
-                <input
-                  type="date"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                  className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black/30"
-                />
-              </div>
             </div>
 
             {error && <p className="text-xs text-red-500">{error}</p>}
 
             <button
               onClick={handleSubmit}
-              disabled={loading || !name.trim() || !group}
-              className="w-full py-3 border border-black rounded-lg text-sm font-semibold hover:bg-black hover:text-white transition-colors disabled:opacity-40"
+              disabled={loading || !name.trim() || !model}
+              className="w-full py-3 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/80 transition-colors disabled:opacity-40"
             >
-              {loading ? t.common.creating : t.createKeyModal.generateKey}
+              {loading ? 'Creating...' : 'Create Key'}
             </button>
           </div>
         )}

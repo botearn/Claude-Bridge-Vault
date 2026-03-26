@@ -77,9 +77,9 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
           <thead>
             <tr className="border-b border-black/5 text-[10px] font-semibold text-black/40 uppercase tracking-widest">
               <th className="text-left py-2 pr-4">{t.keyTable.name}</th>
+              <th className="text-left py-2 pr-4">Model</th>
               <th className="text-left py-2 pr-4">{t.keyTable.key}</th>
               <th className="text-right py-2 pr-4">{t.keyTable.usage}</th>
-              <th className="text-right py-2 pr-4">{t.keyTable.remaining}</th>
               <th className="text-right py-2 pr-4">{t.keyTable.tokens}</th>
               <th className="text-right py-2 pr-4">{t.keyTable.cost}</th>
               <th className="text-left py-2 pr-4">{t.keyTable.lastUsed}</th>
@@ -89,19 +89,20 @@ export function KeyTable({ keys, onDeleted }: KeyTableProps) {
           <tbody>
             {keys.map((row) => (
               (() => {
-                const remaining = row.totalQuota != null ? Math.max(0, row.totalQuota - ((row.inputTokens || 0) + (row.outputTokens || 0))) : null;
                 const tokens = (row.inputTokens || 0) + (row.outputTokens || 0);
                 const cost = row.costUsd || 0;
                 return (
               <tr key={row.key} className="border-b border-black/5 hover:bg-black/[0.01] transition-colors">
                 <td className="py-3 pr-4 font-medium">{row.name}</td>
                 <td className="py-3 pr-4">
+                  <span className="text-xs font-mono bg-black/5 px-1.5 py-0.5 rounded text-black/60">
+                    {row.model ?? row.vendor}
+                  </span>
+                </td>
+                <td className="py-3 pr-4">
                   <TruncatedKey value={row.key} />
                 </td>
                 <td className="py-3 pr-4 text-right font-mono text-xs">{row.usage}</td>
-                <td className="py-3 pr-4 text-right font-mono text-xs">
-                  {remaining != null ? remaining.toLocaleString() : '∞'}
-                </td>
                 <td className="py-3 pr-4 text-right font-mono text-xs">
                   {tokens ? tokens.toLocaleString() : '—'}
                 </td>
