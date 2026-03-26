@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { VENDOR_CONFIG } from '@/lib/vendors';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 import type { SubKeyData, SubKeyRecord } from '@/lib/types';
 
 type RouteContext = {
@@ -24,10 +25,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   if (!subKey) return NextResponse.json({ error: 'subKey is required' }, { status: 400 });
 
   try {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const session = token ? await verifySessionToken(token) : null;
+
     const payload = await req.json();
     const rawValue = await redis.hget('vault:subkeys', subKey);
     const keyData = parseKeyRecord(rawValue as string | Record<string, unknown> | null);
     if (!keyData) return NextResponse.json({ error: 'Key not found' }, { status: 404 });
+
+    // Ownership check
+    if (session?.role !== 'admin' && keyData.userId !== session?.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const updated: SubKeyData = {
       ...keyData,

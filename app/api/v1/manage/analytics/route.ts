@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { fetchYASync } from '@/lib/youragent-sync';
 import { getUsageLogs } from '@/lib/usage-log';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 import type { SubKeyData } from '@/lib/types';
 
 function percentile(sorted: number[], p: number): number {
@@ -29,9 +30,14 @@ function last30Days(): string[] {
   return dates;
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const dates = last30Days();
   const now = new Date();
+
+  // Resolve session for user isolation
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const session = token ? await verifySessionToken(token) : null;
+  const isAdmin = session?.role === 'admin';
 
   // Parallel fetch — keys, daily counts, youragent sync, and recent latency logs
   const [rawKeys, rawCounts, yaRaw, recentLogs] = await Promise.all([
@@ -52,9 +58,12 @@ export async function GET(req: Request) {
         .filter(Boolean) as (SubKeyData & { key: string })[]
     : [];
 
+  // User isolation: non-admin users only see their own keys
+  const visibleKeys = isAdmin ? allKeys : allKeys.filter(k => k.userId === session?.userId);
+
   const keys = scopeFilter
-    ? allKeys.filter(k => (k.scope ?? 'internal') === scopeFilter)
-    : allKeys;
+    ? visibleKeys.filter(k => (k.scope ?? 'internal') === scopeFilter)
+    : visibleKeys;
 
   const byVendor: Record<string, { calls: number; inputTokens: number; outputTokens: number; costUsd: number; keyCount: number }> = {};
   let totalCalls = 0, totalInputTokens = 0, totalOutputTokens = 0, totalCostUsd = 0;
@@ -178,7 +187,7 @@ export async function GET(req: Request) {
 }
 
 // POST ?action=sync-youragent — trigger real data sync from your-agent.cc
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   if (url.searchParams.get('action') !== 'sync-youragent') {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

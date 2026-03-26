@@ -26,6 +26,11 @@ export async function GET(req: NextRequest) {
     const limitParam = req.nextUrl.searchParams.get('limit');
     const cursorParam = req.nextUrl.searchParams.get('cursor');
 
+    // Resolve session for user isolation
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const session = token ? await verifySessionToken(token) : null;
+    const isAdmin = session?.role === 'admin';
+
     const allKeys = await redis.hgetall<Record<string, string>>('vault:subkeys');
 
     if (!allKeys) {
@@ -39,6 +44,8 @@ export async function GET(req: NextRequest) {
     for (const [key, rawValue] of Object.entries(allKeys)) {
       const parsed = parseKeyRecord(rawValue);
       if (!parsed) continue;
+      // User isolation: non-admin users only see their own keys
+      if (!isAdmin && parsed.userId !== session?.userId) continue;
       if (vendorFilter && parsed.vendor !== vendorFilter) continue;
       if (groupFilter && parsed.group !== groupFilter) continue;
       if (scopeFilter) {
@@ -156,7 +163,20 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'subKey is required' }, { status: 400 });
     }
 
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const session = token ? await verifySessionToken(token) : null;
+
     const existing = await redis.hget<string>('vault:subkeys', subKey);
+    if (!existing) {
+      return NextResponse.json({ error: 'Key not found' }, { status: 404 });
+    }
+
+    // Ownership check: non-admin can only delete their own keys
+    const kd = parseKeyRecord(existing);
+    if (session?.role !== 'admin' && kd?.userId !== session?.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const deleted = await redis.hdel('vault:subkeys', subKey);
 
     if (deleted === 0) {
