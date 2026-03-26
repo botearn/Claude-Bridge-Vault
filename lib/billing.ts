@@ -144,7 +144,9 @@ export function estimateClaudeOfficialCostUsd(model: string | undefined, usage: 
 export function safeModelFromBody(rawBody: string): string | undefined {
   try {
     const parsed = JSON.parse(rawBody) as Record<string, unknown>;
-    return typeof parsed.model === 'string' ? parsed.model : undefined;
+    if (typeof parsed.model !== 'string') return undefined;
+    // Cap length to prevent oversized strings from being stored in Redis
+    return parsed.model.length <= 128 ? parsed.model : parsed.model.slice(0, 128);
   } catch {
     return undefined;
   }

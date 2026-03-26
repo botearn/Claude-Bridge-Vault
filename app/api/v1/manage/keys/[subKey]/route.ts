@@ -36,6 +36,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       totalQuota: payload.totalQuota === null ? null : typeof payload.totalQuota === 'number' ? Math.floor(payload.totalQuota) : keyData.totalQuota,
       expiresAt: payload.expiresAt === null ? null : typeof payload.expiresAt === 'string' && payload.expiresAt ? payload.expiresAt : keyData.expiresAt,
       model: payload.model === null ? undefined : typeof payload.model === 'string' ? payload.model : keyData.model,
+      budgetUsd: payload.budgetUsd === null ? null : typeof payload.budgetUsd === 'number' ? payload.budgetUsd : keyData.budgetUsd,
     };
 
     await redis.hset('vault:subkeys', { [subKey]: JSON.stringify(updated) });

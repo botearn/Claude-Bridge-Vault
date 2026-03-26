@@ -16,6 +16,7 @@ interface EditState {
   group: string;
   totalQuota: string;
   expiresAt: string;
+  budgetUsd: string;
 }
 
 function KeySettingsRow({
@@ -30,28 +31,42 @@ function KeySettingsRow({
   const s = t.settings;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState<EditState>({
     name: row.name,
     group: row.group,
     totalQuota: row.totalQuota != null ? String(row.totalQuota) : '',
     expiresAt: row.expiresAt ? row.expiresAt.slice(0, 10) : '',
+    budgetUsd: row.budgetUsd != null ? String(row.budgetUsd) : '',
   });
 
   const handleSave = async () => {
     setSaving(true);
-    await fetch(`/api/v1/manage/keys/${encodeURIComponent(row.key)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.name,
-        group: form.group,
-        totalQuota: form.totalQuota ? parseInt(form.totalQuota, 10) : null,
-        expiresAt: form.expiresAt || null,
-      }),
-    });
-    setSaving(false);
-    setEditing(false);
-    onSaved();
+    setSaveError('');
+    try {
+      const res = await fetch(`/api/v1/manage/keys/${encodeURIComponent(row.key)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          group: form.group,
+          totalQuota: form.totalQuota ? parseInt(form.totalQuota, 10) : null,
+          expiresAt: form.expiresAt || null,
+          budgetUsd: form.budgetUsd ? parseFloat(form.budgetUsd) : null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveError((err as { error?: string }).error ?? 'Save failed');
+        return;
+      }
+      setEditing(false);
+      onSaved();
+    } catch {
+      setSaveError('Network error — changes not saved');
+    } finally {
+      setSaving(false);
+    }
     emitVaultSync({ source: 'key-edit', vendor: row.vendor, group: form.group, subKey: row.key });
   };
 
@@ -176,6 +191,29 @@ function KeySettingsRow({
               />
             </div>
           </div>
+
+          {/* USD Budget */}
+          <div>
+            <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-1">
+              {s.budgetUsd} <span className="normal-case font-normal">({s.blankUnlimited})</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-black/40">$</span>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Unlimited"
+                value={form.budgetUsd}
+                onChange={e => setForm(f => ({ ...f, budgetUsd: e.target.value }))}
+                className="w-full border border-[var(--border)] rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:border-black/30"
+              />
+            </div>
+          </div>
+
+          {saveError && (
+            <p className="text-xs text-red-500">{saveError}</p>
+          )}
 
           <div className="flex gap-2 pt-1">
             <button

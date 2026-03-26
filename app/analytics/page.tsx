@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart2, Zap, TrendingUp, Key, AlertTriangle, Clock,
-  ArrowLeft, RefreshCw, Activity, ChevronDown,
+  ArrowLeft, RefreshCw, Activity, ChevronDown, Timer,
 } from 'lucide-react';
 import { useLang, LangToggle } from '@/components/LangContext';
 import { VENDOR_CONFIG } from '@/lib/vendors';
@@ -44,6 +44,9 @@ interface AnalyticsData {
     activeKeys: number;
     keysNearQuota: number;
     expiringKeys: number;
+    latencyP50: number;
+    latencyP95: number;
+    latencyP99: number;
   };
   byVendor: Record<string, VendorStat>;
   keyHealth: KeyHealth[];
@@ -258,7 +261,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {[
             { label: a.totalCalls, icon: <Zap size={12} />, value: loading ? null : fmtNum(data?.summary.totalCalls ?? 0) },
             { label: a.totalTokens, icon: <BarChart2 size={12} />, value: loading ? null : fmtNum(data?.summary.totalTokens ?? 0) },
@@ -276,6 +279,35 @@ export default function AnalyticsPage() {
               }
             </div>
           ))}
+        </div>
+
+        {/* Latency Percentiles Card */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-xl)] p-4 shadow-vault mb-6">
+          <div className="flex items-center gap-1.5 text-black/40 mb-3">
+            <Timer size={12} />
+            <span className="text-[10px] uppercase tracking-[0.2em]">{a.latency ?? 'Response Latency'}</span>
+            <span className="ml-auto text-[9px] text-black/25">{a.latencyNote ?? 'last 200 requests'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {loading ? (
+              [1,2,3].map(i => <Skeleton key={i} className="h-8" />)
+            ) : (data?.summary.latencyP50 ?? 0) === 0 ? (
+              <div className="col-span-3 text-xs text-black/30 text-center py-1">{a.noData}</div>
+            ) : (
+              [
+                { label: 'p50', value: data?.summary.latencyP50 ?? 0 },
+                { label: 'p95', value: data?.summary.latencyP95 ?? 0 },
+                { label: 'p99', value: data?.summary.latencyP99 ?? 0 },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center">
+                  <div className="text-[10px] text-black/40 mb-1 uppercase tracking-wider">{label}</div>
+                  <div className="text-lg font-semibold font-mono">
+                    {value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value}ms`}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Alerts row */}

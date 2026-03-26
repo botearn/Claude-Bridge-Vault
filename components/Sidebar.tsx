@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag } from 'lucide-react';
+import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useLang } from './LangContext';
 
@@ -45,6 +45,8 @@ export function Sidebar() {
     { href: '/monitoring', icon: <Activity size={18} />, label: t.dashboard.monitoring },
     { href: '/docs', icon: <FileText size={18} />, label: t.dashboard.docs },
     { href: '/channels', icon: <GitBranch size={18} />, label: t.sidebar.channels },
+    { href: '/playground', icon: <Wand2 size={18} />, label: t.sidebar.playground },
+    { href: '/logs', icon: <ScrollText size={18} />, label: t.sidebar.logs },
     { href: '/pricing', icon: <Tag size={18} />, label: t.sidebar.pricing },
     { href: '/settings', icon: <Settings size={18} />, label: t.dashboard.settings },
     { href: '/query', icon: <Search size={18} />, label: t.dashboard.keyLookup.replace(' →', '') },

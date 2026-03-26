@@ -62,7 +62,9 @@ export async function GET(req: NextRequest) {
 
     // Paginated response
     const limit = Math.min(Math.max(parseInt(limitParam, 10) || 50, 1), 200);
-    let startIdx = 0;
+    const rawOffset = parseInt(req.nextUrl.searchParams.get('offset') ?? '0', 10);
+    const safeOffset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.min(rawOffset, 100_000) : 0;
+    let startIdx = safeOffset;
     if (cursorParam) {
       const idx = entries.findIndex(([key]) => key === cursorParam);
       if (idx >= 0) startIdx = idx + 1;
@@ -103,8 +105,9 @@ export async function POST(req: NextRequest) {
     const group = typeof payload?.group === 'string' ? payload.group.trim() : '';
     const scope: KeyScope = payload?.scope === 'external' ? 'external' : 'internal';
     const model = typeof payload?.model === 'string' && payload.model ? payload.model : undefined;
-    const totalQuota = typeof payload?.totalQuota === 'number' ? Math.floor(payload.totalQuota) : null;
+    const totalQuota = typeof payload?.totalQuota === 'number' && payload.totalQuota > 0 ? Math.floor(payload.totalQuota) : null;
     const expiresAt = typeof payload?.expiresAt === 'string' && payload.expiresAt ? payload.expiresAt : null;
+    const budgetUsd = typeof payload?.budgetUsd === 'number' && payload.budgetUsd > 0 ? payload.budgetUsd : null;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -133,6 +136,7 @@ export async function POST(req: NextRequest) {
       lastUsed: null,
       totalQuota,
       expiresAt,
+      ...(budgetUsd != null ? { budgetUsd } : {}),
     };
 
     await redis.hset('vault:subkeys', { [subKey]: JSON.stringify(keyData) });

@@ -202,6 +202,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    // USD budget check: if key has a per-key spend cap, enforce it
+    const budgetUsd = (keyData as { budgetUsd?: number | null }).budgetUsd;
+    if (budgetUsd != null && budgetUsd > 0) {
+      const spentUsd = kd.costUsd ?? 0;
+      if (spentUsd >= budgetUsd) {
+        const ts = new Date().toISOString();
+        void logEvent({ type: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
+        notify({ event: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, detail: `$${spentUsd.toFixed(4)}/$${budgetUsd} USD budget`, timestamp: ts });
+        return NextResponse.json({ error: 'Key USD budget exceeded' }, { status: 429 });
+      }
+    }
+
     // Balance check: if key has an owner, verify they have funds
     const keyUserId = (keyData as { userId?: string }).userId;
     if (keyUserId) {
@@ -355,7 +367,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // Non-streaming: parse JSON + update tokens/cost
-    const data = await response.json() as Record<string, unknown>;
+    let data: Record<string, unknown>;
+    try {
+      data = await response.json() as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: 'Upstream returned non-JSON response' }, { status: 502 });
+    }
     const realModel = typeof data.model === 'string' ? data.model : undefined;
     const effectiveModel = realModel ?? model;
     const tokenUsage = extractTokenUsage(vendor, data);

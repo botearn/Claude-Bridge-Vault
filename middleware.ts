@@ -61,5 +61,7 @@ export const config = {
     '/settings',
     '/analytics',
     '/monitoring',
+    '/playground',
+    '/logs',
   ],
 };
