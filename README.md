@@ -1,67 +1,79 @@
-# Token Bank
+# Claude Bridge Vault
 
-A multi-vendor API gateway + dashboard that issues **Sub-Keys** (e.g. `sk-vault-...`) to proxy requests to upstream AI vendors (Claude / YourAgent / Yunwu).
-
-- Dashboard to create/manage keys, groups, quota & expiry
-- Proxy endpoints that accept Sub-Keys and forward to upstream vendor APIs
-- Usage tracking (calls, tokens, cost) with per-key daily breakdown
-- Internal / External scope separation
-- Collapsible sidebar navigation
+Multi-vendor API key management platform. Users register, top up balance, create API keys (one key = one model), and get billed per call.
 
 **Live:** [https://www.sitesfy.run](https://www.sitesfy.run)
 
 ---
 
-## Supported Vendors & Proxy Endpoints
+## Stack
 
-| Vendor | Proxy Path | Auth Header | Format |
-|--------|-----------|-------------|--------|
-| YourAgent | `/api/v1/youragent` | `x-api-key` | Anthropic Messages |
-| Claude | `/api/v1/claude` | `x-api-key` | Anthropic Messages |
-| Yunwu | `/api/v1/yunwu` | `x-api-key` | OpenAI Chat Completions |
-
----
-
-## Environment Variables
-
-Create `.env.local`:
-
-```bash
-# Admin Auth (required)
-ADMIN_SECRET=your_secret_here
-
-# Upstash Redis (required)
-UPSTASH_REDIS_REST_URL=...
-UPSTASH_REDIS_REST_TOKEN=...
-
-# Vendor master keys (required for proxying)
-YOURAGENT_MASTER_KEY=...
-CLAUDE_MASTER_KEY=...
-YUNWU_MASTER_KEY=...
-
-# Optional
-NEXT_PUBLIC_BASE_URL=https://www.sitesfy.run
-WEBHOOK_URL=...
-FEISHU_WEBHOOK_URL=...
-```
+- **Framework**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **Storage**: Upstash Redis
+- **Payments**: Stripe
+- **Deploy**: Vercel
 
 ---
 
-## Local Development
+## Features
 
-```bash
-npm install
-npm run dev
-```
+### For Users
+- Register / login (JWT session, 30-day cookie)
+- Top up balance via Stripe
+- Create API keys — pick a model, give it a name, done
+- One key = one model (Claude, GPT-4, Gemini, Grok, DeepSeek, etc.)
+- Usage billed per call, deducted from balance
+- See call count, token usage, and estimated cost per key
 
-Open http://localhost:3000
+### For Admins
+- All of the above, plus:
+- Filter keys by vendor (YourAgent / Claude / Yunwu) and scope (Internal / External)
+- Analytics page: call trends, vendor distribution, key health, latency percentiles
+- Manual balance top-up for any user by email
+- Per-key daily usage breakdown
 
 ---
 
-## API Usage Examples
+## Auth
 
-### YourAgent / Claude (Anthropic format)
+- First registered user automatically gets `role: 'admin'`; all subsequent users get `role: 'user'`
+- Session: HS256 JWT signed with `JWT_SECRET`, 30-day expiry, stored in `httpOnly` cookie
 
+---
+
+## User Data Isolation
+
+Non-admin users only see and can modify their own keys. Enforced server-side on all API routes (GET, DELETE, PATCH) by matching `userId` from the session cookie against the key's stored `userId`. Admins have full visibility.
+
+---
+
+## Vendors
+
+| Vendor | Endpoint | Models |
+|--------|----------|--------|
+| `youragent` | your-agent.cc | Claude (4% of official price) |
+| `claude` | api.anthropic.com | Claude (official pricing) |
+| `yunwu` | yunwu.ai | Claude, GPT-4, Gemini, Grok, DeepSeek |
+
+When a user creates a key, the vendor is auto-derived from the selected model (Claude models → YourAgent, everything else → Yunwu). Users never see the vendor concept.
+
+---
+
+## Proxy Routes
+
+All API calls go through `/api/v1/[vendor]/...`. The proxy:
+
+1. Looks up the sub-key in Redis
+2. Checks expiry (`expiresAt`) → 403 if expired
+3. Checks call quota (`usage >= totalQuota`) → 429 if exceeded
+4. Checks balance → 402 if insufficient
+5. Forwards request to upstream vendor with the master key
+6. On success: increments usage, records tokens + cost, deducts balance
+
+### Usage Examples
+
+**YourAgent / Claude (Anthropic format)**
 ```bash
 curl https://www.sitesfy.run/api/v1/youragent \
   -H "x-api-key: sk-vault-youragent-xxxxxxxx" \
@@ -70,8 +82,7 @@ curl https://www.sitesfy.run/api/v1/youragent \
   -d '{"model":"claude-opus-4-6","max_tokens":128,"messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-### Yunwu (OpenAI-compatible)
-
+**Yunwu (OpenAI-compatible)**
 ```bash
 curl https://www.sitesfy.run/api/v1/yunwu \
   -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \
@@ -81,30 +92,106 @@ curl https://www.sitesfy.run/api/v1/yunwu \
 
 ---
 
-## Key Features
+## Redis Schema
 
-- **Scope**: Internal / External key separation
-- **Quota**: Token-based quota per key (`totalQuota`)
-- **Expiry**: Date-based key expiry (`expiresAt`)
-- **Rate Limiting**: 20 requests per 60-second sliding window per key
-- **Master Key Rotation**: Round-robin + auto-failover on 401/429/5xx
-- **Cost Tracking**: Per-vendor pricing (Claude official, YourAgent 4%, OpenAI for Yunwu)
-- **Per-Key Daily Stats**: `vault:daily:keys:{date}` with 35-day TTL
-- **Webhook**: Feishu + generic webhook on quota/expiry events
-- **i18n**: English / Chinese toggle
+```
+vault:subkeys                    hash  key=sk-vault-{vendor}-{random}, value=SubKeyData JSON
+vault:users                      hash  key=email, value=UserData JSON
+vault:groups                     hash  key={vendor}:{groupId}, value={label,vendor,createdAt}
+vault:settings                   hash  field=youagentBudgetUsd
+vault:balance:{userId}           string  balance in USD
+vault:daily:calls:{YYYY-MM-DD}  integer  global daily call counter, TTL 35d
+vault:daily:keys:{YYYY-MM-DD}   hash  per-key daily usage (calls/tokens/cost), TTL 35d
+vault:usage:log                  list  recent proxy call logs (last 1000)
+```
+
+### SubKeyData fields
+
+```ts
+{
+  name: string
+  vendor: 'claude' | 'youragent' | 'yunwu'
+  group: string
+  scope: 'internal' | 'external'
+  model?: string          // locked model for this key
+  userId?: string         // owner — used for data isolation
+  usage: number           // call count
+  inputTokens?: number
+  outputTokens?: number
+  costUsd?: number
+  createdAt: string
+  lastUsed: string | null
+  totalQuota: number | null   // null = unlimited
+  expiresAt: string | null    // null = no expiry
+  budgetUsd?: number | null   // max USD spend cap
+}
+```
+
+---
+
+## Environment Variables
+
+```env
+# Upstash Redis
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# Vendor master keys (comma-separated for multiple)
+CLAUDE_MASTER_KEY=
+YOURAGENT_MASTER_KEY=
+YUNWU_MASTER_KEY=
+
+# Auth
+JWT_SECRET=
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+
+# Optional
+NEXT_PUBLIC_BASE_URL=https://your-domain.com
+MIGRATION_SECRET=    # one-time use for vault_subkeys → vault:subkeys migration
+```
+
+---
+
+## Local Development
+
+```bash
+cp .env.example .env.local   # fill in your keys
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) — redirects to `/vault`, login required.
 
 ---
 
 ## Pages
 
-| Path | Description |
-|------|-------------|
-| `/vault` | Dashboard — manage keys by vendor & group |
-| `/analytics` | Calls, tokens, cost, key health, daily breakdown |
-| `/monitoring` | Real-time event log & YourAgent sync |
-| `/settings` | Edit key details, manage groups |
-| `/query` | Single key lookup with usage history |
-| `/docs` | API documentation |
+| Route | Description |
+|-------|-------------|
+| `/vault` | Main dashboard — key list, balance, create key; admin filter bar for vendor/scope |
+| `/analytics` | Admin: call trends, vendor breakdown, key health, latency percentiles |
+| `/settings` | Edit existing keys (name, quota, expiry) |
+| `/logs` | Recent proxy call logs |
+| `/playground` | Test a key inline |
+| `/pricing` | Pricing page |
+| `/login` | Login / register |
+
+---
+
+## Key Features
+
+- **One key = one model**: Model is locked at creation time; vendor derived automatically
+- **User isolation**: Each user only sees their own keys and usage stats
+- **Quota**: Call-based or token-based quota per key (`totalQuota`)
+- **Expiry**: Date-based key expiry (`expiresAt`)
+- **Rate limiting**: Per-key sliding window (RPM / TPM)
+- **Master key rotation**: Round-robin + auto-failover on 401/429/5xx
+- **Cost tracking**: Per-vendor pricing (Claude official, YourAgent 4%, OpenAI for Yunwu)
+- **i18n**: English / Chinese toggle
 
 ---
 
