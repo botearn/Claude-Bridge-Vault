@@ -27,6 +27,7 @@ export interface SubKeyData {
   group: string;
   scope?: KeyScope;            // default 'internal' for backward compat
   model?: string;              // default model for this key (optional)
+  userId?: string;             // owner user id (null = legacy admin-created)
   usage: number;
   inputTokens?: number;
   outputTokens?: number;

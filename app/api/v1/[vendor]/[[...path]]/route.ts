@@ -7,6 +7,7 @@ import { logEvent } from '@/lib/events';
 import { proxyRateLimit } from '@/lib/ratelimit';
 import { notify } from '@/lib/webhook';
 import { recordDailyKeyUsage } from '@/lib/daily-stats';
+import { getBalance, deductBalance } from '@/lib/balance';
 
 type RouteContext = {
   params: Promise<{ vendor: string; path?: string[] }>;
@@ -178,6 +179,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    // Balance check: if key has an owner, verify they have funds
+    const keyUserId = (keyData as { userId?: string }).userId;
+    if (keyUserId) {
+      const balance = await getBalance(keyUserId);
+      if (balance <= 0) {
+        return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 });
+      }
+    }
+
     let rawBody = await req.text();
     let model = safeModelFromBody(rawBody);
     const streaming = isStreaming(rawBody);
@@ -281,6 +291,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
           }),
         });
         void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
+        // Deduct from user balance
+        if (keyUserId && costInc > 0) {
+          void deductBalance(keyUserId, costInc);
+        }
       });
 
       const headers = new Headers();
@@ -311,6 +325,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }),
     });
     void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
+    // Deduct from user balance
+    if (keyUserId && costInc > 0) {
+      void deductBalance(keyUserId, costInc);
+    }
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {

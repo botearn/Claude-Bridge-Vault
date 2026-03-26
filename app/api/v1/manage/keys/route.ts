@@ -3,6 +3,7 @@ import { redis } from '@/lib/redis';
 import { isValidVendor } from '@/lib/vendors';
 import type { SubKeyData, KeyScope } from '@/lib/types';
 import { logEvent } from '@/lib/events';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 
 const parseKeyRecord = (value: string | Record<string, unknown> | null): SubKeyData | null => {
   if (!value) return null;
@@ -88,6 +89,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Extract user from session (optional — legacy admin cookie also passes middleware)
+    let userId: string | undefined;
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    if (token) {
+      const session = await verifySessionToken(token);
+      if (session) userId = session.userId;
+    }
+
     const payload = await req.json();
     const name = typeof payload?.name === 'string' ? payload.name.trim() : '';
     const vendor = typeof payload?.vendor === 'string' ? payload.vendor.trim() : '';
@@ -118,6 +127,7 @@ export async function POST(req: NextRequest) {
       group,
       scope,
       ...(model ? { model } : {}),
+      ...(userId ? { userId } : {}),
       usage: 0,
       createdAt: new Date().toISOString(),
       lastUsed: null,
