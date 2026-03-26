@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe } from 'lucide-react';
+import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, ExternalLink, Lock, Globe, Wallet, User } from 'lucide-react';
 import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { VendorId, KeyScope } from '@/lib/types';
 import { VendorCard } from '@/components/VendorCard';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
+import { TopUpModal } from '@/components/TopUpModal';
 import { useLang, LangToggle } from '@/components/LangContext';
 
 const VENDORS: VendorId[] = ['youragent', 'claude', 'yunwu'];
@@ -30,13 +31,39 @@ interface AnalyticsSummary {
   activeKeys: number;
 }
 
+interface UserInfo {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+}
+
 export default function VaultDashboard() {
   const { t } = useLang();
   const [activeScope, setActiveScope] = useState<KeyScope>('internal');
   const [activeVendor, setActiveVendor] = useState<VendorId>('youragent');
   const [showCreate, setShowCreate] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data?.user && setUserInfo(data.user))
+      .catch(() => {});
+  }, []);
+
+  const fetchBalance = useCallback(() => {
+    fetch('/api/v1/manage/balance')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setBalance(data.balanceUsd))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchBalance(); }, [fetchBalance, refreshToken]);
 
   useEffect(() => {
     fetch('/api/v1/manage/analytics')
@@ -75,6 +102,33 @@ export default function VaultDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Balance */}
+            {balance !== null && (
+              <button
+                onClick={() => userInfo?.role === 'admin' && setShowTopUp(true)}
+                className={`focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums transition-all duration-[var(--duration-normal)] ${
+                  userInfo?.role === 'admin' ? 'hover:border-[var(--border-hover)] hover:bg-[var(--surface)] cursor-pointer' : 'cursor-default'
+                }`}
+                title={userInfo?.role === 'admin' ? t.dashboard.topUp : undefined}
+              >
+                <Wallet size={13} className="text-[var(--success)]" />
+                <span className={balance > 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
+                  ${balance.toFixed(2)}
+                </span>
+              </button>
+            )}
+
+            {/* User */}
+            {userInfo && (
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm">
+                <User size={13} className="text-[var(--text-3)]" />
+                <span className="text-[var(--text-2)] max-w-[100px] truncate">{userInfo.name}</span>
+                {userInfo.role === 'admin' && (
+                  <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">admin</span>
+                )}
+              </div>
+            )}
+
             <LangToggle />
             <button
               onClick={() => setShowCreate(true)}
@@ -188,6 +242,14 @@ export default function VaultDashboard() {
 
       {showCreate && (
         <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} defaultScope={activeScope} />
+      )}
+
+      {showTopUp && (
+        <TopUpModal
+          onClose={() => setShowTopUp(false)}
+          onSuccess={() => { fetchBalance(); setShowTopUp(false); }}
+          currentUserId={userInfo?.id}
+        />
       )}
     </div>
   );
