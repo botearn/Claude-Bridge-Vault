@@ -1,3 +1,13 @@
+/* ── User ── */
+export interface UserData {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
+
 export type VendorId = 'claude' | 'youragent' | 'yunwu';
 export type AuthStyle = 'x-api-key' | 'bearer';
 export type KeyScope = 'internal' | 'external';

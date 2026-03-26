@@ -1,25 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 
-const COOKIE_NAME = 'vault_admin';
+const SESSION_COOKIE = 'vault_session';
+const LEGACY_COOKIE = 'vault_admin';
 
-export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+function getSecret() {
+  const raw = process.env.JWT_SECRET || process.env.ADMIN_SECRET;
+  if (!raw) return null;
+  return new TextEncoder().encode(raw);
+}
 
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) {
-    // Misconfigured — block everything except login
-    if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
-      return NextResponse.next();
+async function isAuthenticated(req: NextRequest): Promise<boolean> {
+  // 1) JWT session cookie
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (token) {
+    const secret = getSecret();
+    if (secret) {
+      try {
+        await jwtVerify(token, secret);
+        return true;
+      } catch { /* invalid token */ }
     }
-    return NextResponse.json({ error: 'ADMIN_SECRET not configured' }, { status: 503 });
   }
 
-  const cookie = req.cookies.get(COOKIE_NAME)?.value;
-  const authenticated = cookie === secret;
+  // 2) Legacy ADMIN_SECRET cookie (backward compat)
+  const legacy = req.cookies.get(LEGACY_COOKIE)?.value;
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (legacy && adminSecret && legacy === adminSecret) {
+    return true;
+  }
 
-  if (authenticated) return NextResponse.next();
+  return false;
+}
 
-  // Unauthenticated: API routes → 401, pages → redirect to /login
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Always allow auth routes and login page
+  if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
+    return NextResponse.next();
+  }
+
+  const authed = await isAuthenticated(req);
+  if (authed) return NextResponse.next();
+
+  // Unauthenticated
   if (pathname.startsWith('/api/')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -30,9 +55,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protect all manage API endpoints
     '/api/v1/manage/:path*',
-    // Protect dashboard pages (not /login, not /api/auth/*)
     '/vault',
     '/query',
     '/settings',
