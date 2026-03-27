@@ -91,9 +91,13 @@ export async function GET(req: NextRequest) {
     // Existing user — parse and log them in
     user = typeof existing === 'string' ? JSON.parse(existing) : (existing as unknown as UserData);
   } else {
-    // New user — first user = admin
-    const allUsers = await redis.hlen('vault:users');
-    const role = allUsers === 0 ? 'admin' : 'user';
+    // Admin whitelist
+    const ADMIN_EMAILS = new Set([
+      'yuqingchen02@gmail.com',
+      'nicole.chen@sitesfy.ai',
+      'steve@sitesfy.ai',
+    ]);
+    const role = ADMIN_EMAILS.has(email) ? 'admin' : 'user';
     const id = `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
     user = {

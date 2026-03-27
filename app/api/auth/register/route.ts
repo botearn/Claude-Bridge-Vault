@@ -30,9 +30,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
   }
 
-  // First user gets admin role
-  const allUsers = await redis.hlen('vault:users');
-  const role = allUsers === 0 ? 'admin' : 'user';
+  // Admin whitelist — only these emails get admin role
+  const ADMIN_EMAILS = new Set([
+    'yuqingchen02@gmail.com',
+    'nicole.chen@sitesfy.ai',
+    'steve@sitesfy.ai',
+  ]);
+  const role = ADMIN_EMAILS.has(email) ? 'admin' : 'user';
 
   const passwordHash = await bcrypt.hash(password, 10);
   const id = `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
