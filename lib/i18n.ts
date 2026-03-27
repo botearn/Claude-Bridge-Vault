@@ -283,6 +283,8 @@ export const translations = {
       footer: 'Token Bank · Multi-Vendor API Gateway',
       errorInvalid: 'Invalid email or password',
       errorNetwork: 'Network error, please try again.',
+      or: 'or',
+      googleSignIn: 'Continue with Google',
     },
     channels: {
       title: 'Channel Management',
@@ -748,6 +750,8 @@ export const translations = {
       footer: 'Token Bank · 多厂商 API 网关',
       errorInvalid: '邮箱或密码错误',
       errorNetwork: '网络错误，请重试。',
+      or: '或',
+      googleSignIn: '使用 Google 登录',
     },
     channels: {
       title: '渠道管理',

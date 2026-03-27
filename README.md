@@ -37,8 +37,11 @@ Multi-vendor API key management platform. Users register, top up balance, create
 
 ## Auth
 
+- Email/password registration + login
+- Google OAuth (one-click sign in / sign up)
 - First registered user automatically gets `role: 'admin'`; all subsequent users get `role: 'user'`
 - Session: HS256 JWT signed with `JWT_SECRET`, 30-day expiry, stored in `httpOnly` cookie
+- Google users auto-created on first login (no password set)
 
 ---
 
@@ -143,6 +146,10 @@ YUNWU_MASTER_KEY=
 
 # Auth
 JWT_SECRET=
+
+# Google OAuth (optional — enables "Continue with Google")
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 
 # Stripe
 STRIPE_SECRET_KEY=
