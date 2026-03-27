@@ -10,15 +10,20 @@ function getSecret() {
   return new TextEncoder().encode(raw);
 }
 
-async function isAuthenticated(req: NextRequest): Promise<boolean> {
+interface AuthResult {
+  authenticated: boolean;
+  role?: string;
+}
+
+async function checkAuth(req: NextRequest): Promise<AuthResult> {
   // 1) JWT session cookie
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (token) {
     const secret = getSecret();
     if (secret) {
       try {
-        await jwtVerify(token, secret);
-        return true;
+        const { payload } = await jwtVerify(token, secret);
+        return { authenticated: true, role: (payload as { role?: string }).role };
       } catch { /* invalid token */ }
     }
   }
@@ -27,11 +32,14 @@ async function isAuthenticated(req: NextRequest): Promise<boolean> {
   const legacy = req.cookies.get(LEGACY_COOKIE)?.value;
   const adminSecret = process.env.ADMIN_SECRET;
   if (legacy && adminSecret && legacy === adminSecret) {
-    return true;
+    return { authenticated: true, role: 'admin' };
   }
 
-  return false;
+  return { authenticated: false };
 }
+
+// Pages that require admin role
+const ADMIN_ONLY_PAGES = ['/channels', '/analytics', '/monitoring'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -41,16 +49,23 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const authed = await isAuthenticated(req);
-  if (authed) return NextResponse.next();
+  const { authenticated, role } = await checkAuth(req);
 
-  // Unauthenticated
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!authenticated) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
   }
-  const loginUrl = new URL('/login', req.url);
-  loginUrl.searchParams.set('from', pathname);
-  return NextResponse.redirect(loginUrl);
+
+  // Admin-only pages: redirect non-admins to /vault
+  if (ADMIN_ONLY_PAGES.some(p => pathname === p) && role !== 'admin') {
+    return NextResponse.redirect(new URL('/vault', req.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
@@ -61,6 +76,7 @@ export const config = {
     '/settings',
     '/analytics',
     '/monitoring',
+    '/channels',
     '/playground',
     '/logs',
   ],

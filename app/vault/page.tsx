@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal, LayoutDashboard } from 'lucide-react';
+import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal, LayoutDashboard, Radio } from 'lucide-react';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 import { TopUpModal } from '@/components/TopUpModal';
 import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
@@ -200,14 +200,24 @@ export default function VaultDashboard() {
 
             {/* Admin shortcuts */}
             {userInfo?.role === 'admin' && (
-              <a
-                href="/analytics"
-                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
-                title="Admin analytics"
-              >
-                <LayoutDashboard size={13} />
-                <span className="text-xs">Admin</span>
-              </a>
+              <>
+                <a
+                  href="/channels"
+                  className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
+                  title="Channel management"
+                >
+                  <Radio size={13} />
+                  <span className="text-xs">Channels</span>
+                </a>
+                <a
+                  href="/analytics"
+                  className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
+                  title="Admin analytics"
+                >
+                  <LayoutDashboard size={13} />
+                  <span className="text-xs">Analytics</span>
+                </a>
+              </>
             )}
 
             <LangToggle />
