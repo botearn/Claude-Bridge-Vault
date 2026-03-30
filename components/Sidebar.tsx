@@ -40,7 +40,7 @@ export function Sidebar() {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.role) setRole(d.role);
+      if (d?.user?.role) setRole(d.user.role);
     }).catch(() => {});
   }, []);
 
