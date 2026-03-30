@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal, LayoutDashboard, Radio } from 'lucide-react';
+import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal } from 'lucide-react';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 import { TopUpModal } from '@/components/TopUpModal';
 import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
@@ -165,25 +165,25 @@ export default function VaultDashboard() {
               </div>
             )}
 
-            {/* Add Credits */}
-            <button
-              onClick={() => setShowStripe(true)}
-              className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
-            >
-              <PlusCircle size={13} />
-              {t.dashboard.recharge}
-            </button>
-
-            {/* Admin manual top-up */}
-            {userInfo?.role === 'admin' && (
+            {/* Add Credits (Stripe) + Admin manual top-up */}
+            <div className="flex items-center gap-0.5">
               <button
-                onClick={() => setShowTopUp(true)}
-                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--success)] hover:border-[var(--success)]/40 hover:bg-[var(--success)]/5 transition-all duration-[var(--duration-normal)]"
+                onClick={() => setShowStripe(true)}
+                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
               >
                 <PlusCircle size={13} />
-                {t.dashboard.topUp}
+                {t.dashboard.recharge}
               </button>
-            )}
+              {userInfo?.role === 'admin' && (
+                <button
+                  onClick={() => setShowTopUp(true)}
+                  title={t.dashboard.topUp}
+                  className="focus-ring p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--success)] hover:border-[var(--success)]/40 hover:bg-[var(--success)]/5 transition-all duration-[var(--duration-normal)]"
+                >
+                  <Wallet size={13} />
+                </button>
+              )}
+            </div>
 
             {/* User info */}
             {userInfo && (
@@ -196,28 +196,6 @@ export default function VaultDashboard() {
                   </span>
                 )}
               </div>
-            )}
-
-            {/* Admin shortcuts */}
-            {userInfo?.role === 'admin' && (
-              <>
-                <a
-                  href="/channels"
-                  className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
-                  title="Channel management"
-                >
-                  <Radio size={13} />
-                  <span className="text-xs">Channels</span>
-                </a>
-                <a
-                  href="/analytics"
-                  className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-all"
-                  title="Admin analytics"
-                >
-                  <LayoutDashboard size={13} />
-                  <span className="text-xs">Analytics</span>
-                </a>
-              </>
             )}
 
             <LangToggle />
