@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2 } from 'lucide-react';
+import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2, BookOpen } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useLang } from './LangContext';
 
@@ -36,21 +36,31 @@ export function Sidebar() {
   const { t } = useLang();
   const pathname = usePathname();
   const { collapsed, toggle } = useContext(SidebarCtx);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.role) setRole(d.role);
+    }).catch(() => {});
+  }, []);
 
   if (pathname === '/login') return null;
 
+  const isAdmin = role === 'admin';
+
   const links = [
     { href: '/vault', icon: <Shield size={18} />, label: t.sidebar.dashboard },
-    { href: '/analytics', icon: <BarChart2 size={18} />, label: t.dashboard.analytics },
-    { href: '/monitoring', icon: <Activity size={18} />, label: t.dashboard.monitoring },
+    { href: '/analytics', icon: <BarChart2 size={18} />, label: t.dashboard.analytics, admin: true },
+    { href: '/monitoring', icon: <Activity size={18} />, label: t.dashboard.monitoring, admin: true },
     { href: '/docs', icon: <FileText size={18} />, label: t.dashboard.docs },
-    { href: '/channels', icon: <GitBranch size={18} />, label: t.sidebar.channels },
+    { href: '/channels', icon: <GitBranch size={18} />, label: t.sidebar.channels, admin: true },
     { href: '/playground', icon: <Wand2 size={18} />, label: t.sidebar.playground },
     { href: '/logs', icon: <ScrollText size={18} />, label: t.sidebar.logs },
     { href: '/pricing', icon: <Tag size={18} />, label: t.sidebar.pricing },
+    { href: '/accounts', icon: <BookOpen size={18} />, label: t.sidebar.accounts, admin: true },
     { href: '/settings', icon: <Settings size={18} />, label: t.dashboard.settings },
     { href: '/query', icon: <Search size={18} />, label: t.dashboard.keyLookup.replace(' →', '') },
-  ];
+  ].filter(l => !l.admin || isAdmin);
 
   return (
     <aside

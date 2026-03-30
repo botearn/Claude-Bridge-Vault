@@ -32,6 +32,7 @@ Multi-vendor API key management platform. Users register, top up balance, create
 - Analytics page: call trends, vendor distribution, key health, latency percentiles
 - Manual balance top-up for any user by email
 - Per-key daily usage breakdown
+- **Vendor Accounts vault**: record third-party token purchase info (API endpoint, website, credentials, notes) with AES-256-GCM encryption at rest and a separate page password gate
 
 ---
 
@@ -106,6 +107,7 @@ vault:balance:{userId}           string  balance in USD
 vault:daily:calls:{YYYY-MM-DD}  integer  global daily call counter, TTL 35d
 vault:daily:keys:{YYYY-MM-DD}   hash  per-key daily usage (calls/tokens/cost), TTL 35d
 vault:usage:log                  list  recent proxy call logs (last 1000)
+vault:accounts                   hash  key=acc-{id}, value=AccountRecord JSON (username/password AES-256-GCM encrypted)
 ```
 
 ### SubKeyData fields
@@ -159,6 +161,8 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 # Optional
 NEXT_PUBLIC_BASE_URL=https://your-domain.com
 MIGRATION_SECRET=    # one-time use for vault_subkeys → vault:subkeys migration
+ACCOUNT_ENCRYPT_KEY= # AES key for encrypting vendor account credentials (falls back to JWT_SECRET)
+ACCOUNTS_PAGE_PASSWORD= # page-level password for /accounts (default: sitesfy2026)
 ```
 
 ---
@@ -185,6 +189,7 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/vault`, l
 | `/logs` | Recent proxy call logs |
 | `/playground` | Test a key inline |
 | `/pricing` | Pricing page |
+| `/accounts` | Admin: vendor account vault (password-protected) |
 | `/login` | Login / register |
 
 ---
@@ -199,6 +204,8 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/vault`, l
 - **Master key rotation**: Round-robin + auto-failover on 401/429/5xx
 - **Cost tracking**: Per-vendor pricing (Claude official, YourAgent 4%, OpenAI for Yunwu)
 - **i18n**: English / Chinese toggle
+- **Vendor accounts**: Encrypted credential vault for third-party API providers (admin-only, page password + AES-256-GCM)
+- **Admin sidebar**: Admin-only pages (Analytics, Monitoring, Channels, Accounts) hidden from non-admin users
 
 ---
 

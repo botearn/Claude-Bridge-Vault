@@ -39,7 +39,7 @@ async function checkAuth(req: NextRequest): Promise<AuthResult> {
 }
 
 // Pages that require admin role
-const ADMIN_ONLY_PAGES = ['/channels', '/analytics', '/monitoring'];
+const ADMIN_ONLY_PAGES = ['/channels', '/analytics', '/monitoring', '/accounts'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -79,5 +79,6 @@ export const config = {
     '/channels',
     '/playground',
     '/logs',
+    '/accounts',
   ],
 };
