@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
+  // Sync role with admin whitelist (in case user registered before whitelist was added)
+  const ADMIN_EMAILS = new Set([
+    'yuqingchen02@gmail.com',
+    'nicole.chen@sitesfy.ai',
+    'steve@sitesfy.ai',
+  ]);
+  const expectedRole = ADMIN_EMAILS.has(email) ? 'admin' : 'user';
+  if (user.role !== expectedRole) {
+    user.role = expectedRole;
+    await redis.hset('vault:users', { [email]: JSON.stringify(user) });
+  }
+
   const token = await createSessionToken(user);
   const res = NextResponse.json({
     ok: true,

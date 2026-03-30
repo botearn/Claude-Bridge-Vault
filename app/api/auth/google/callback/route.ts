@@ -87,17 +87,23 @@ export async function GET(req: NextRequest) {
   const existing = await redis.hget<string>('vault:users', email);
   let user: UserData;
 
+  // Admin whitelist — checked on every login
+  const ADMIN_EMAILS = new Set([
+    'yuqingchen02@gmail.com',
+    'nicole.chen@sitesfy.ai',
+    'steve@sitesfy.ai',
+  ]);
+  const expectedRole = ADMIN_EMAILS.has(email) ? 'admin' : 'user';
+
   if (existing) {
-    // Existing user — parse and log them in
+    // Existing user — parse and sync role
     user = typeof existing === 'string' ? JSON.parse(existing) : (existing as unknown as UserData);
+    if (user.role !== expectedRole) {
+      user.role = expectedRole;
+      await redis.hset('vault:users', { [email]: JSON.stringify(user) });
+    }
   } else {
-    // Admin whitelist
-    const ADMIN_EMAILS = new Set([
-      'yuqingchen02@gmail.com',
-      'nicole.chen@sitesfy.ai',
-      'steve@sitesfy.ai',
-    ]);
-    const role = ADMIN_EMAILS.has(email) ? 'admin' : 'user';
+    const role = expectedRole;
     const id = `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
     user = {
