@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Shield, Plus, LogOut, Zap, BarChart2, TrendingUp, Key, Wallet, User, PlusCircle, SlidersHorizontal } from 'lucide-react';
+import { Shield, Plus, Zap, BarChart2, TrendingUp, Key, Wallet, PlusCircle, SlidersHorizontal } from 'lucide-react';
 import { CreateKeyModal } from '@/components/CreateKeyModal';
 import { TopUpModal } from '@/components/TopUpModal';
 import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
@@ -154,67 +154,23 @@ export default function VaultDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Balance */}
-            {balance !== null && (
-              <div className="flex items-center gap-1 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums">
-                <Wallet size={13} className="text-[var(--success)]" />
-                <span className={balance > 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
-                  ${balance.toFixed(2)}
-                </span>
-              </div>
-            )}
-
-            {/* Add Credits (Stripe) + Admin manual top-up */}
-            <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setShowStripe(true)}
+              className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
+            >
+              <PlusCircle size={13} />
+              {t.dashboard.recharge}
+            </button>
+            {userInfo?.role === 'admin' && (
               <button
-                onClick={() => setShowStripe(true)}
-                className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
+                onClick={() => setShowTopUp(true)}
+                title={t.dashboard.topUp}
+                className="focus-ring p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--success)] hover:border-[var(--success)]/40 hover:bg-[var(--success)]/5 transition-all duration-[var(--duration-normal)]"
               >
-                <PlusCircle size={13} />
-                {t.dashboard.recharge}
+                <Wallet size={13} />
               </button>
-              {userInfo?.role === 'admin' && (
-                <button
-                  onClick={() => setShowTopUp(true)}
-                  title={t.dashboard.topUp}
-                  className="focus-ring p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--success)] hover:border-[var(--success)]/40 hover:bg-[var(--success)]/5 transition-all duration-[var(--duration-normal)]"
-                >
-                  <Wallet size={13} />
-                </button>
-              )}
-            </div>
-
-            {/* User info */}
-            {userInfo && (
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm">
-                <User size={13} className="text-[var(--text-3)]" />
-                <span className="text-[var(--text-2)] max-w-[100px] truncate">{userInfo.name}</span>
-                {userInfo.role === 'admin' && (
-                  <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">
-                    {t.dashboard.adminBadge}
-                  </span>
-                )}
-              </div>
             )}
-
-            <LangToggle />
-
-            <button
-              onClick={() => setShowCreate(true)}
-              className="focus-ring flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-fg)] text-sm font-semibold rounded-[var(--radius-md)] hover:opacity-90 transition-opacity duration-[var(--duration-fast)]"
-            >
-              <Plus size={15} strokeWidth={2.5} />
-              {t.dashboard.newKey}
-            </button>
-
-            <button
-              onClick={handleLogout}
-              title={t.dashboard.signOut}
-              className="focus-ring p-2.5 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--text)] hover:border-[var(--border-hover)] hover:bg-[var(--surface)] transition-all duration-[var(--duration-normal)]"
-            >
-              <LogOut size={15} />
-            </button>
           </div>
         </header>
 

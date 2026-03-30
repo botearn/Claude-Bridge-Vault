@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2, BookOpen } from 'lucide-react';
+import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2, BookOpen, LogOut } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useLang } from './LangContext';
 
@@ -106,13 +106,29 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={toggle}
-        className="flex items-center justify-center h-10 border-t border-black/5 text-black/30 hover:text-black hover:bg-black/5 transition-colors"
-      >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
+      {/* Sign out + Collapse toggle */}
+      <div className="border-t border-black/5">
+        <button
+          onClick={() => { fetch('/api/auth/logout', { method: 'POST' }).finally(() => { window.location.href = '/login'; }); }}
+          className={`group relative flex items-center gap-3 w-full rounded-none text-black/30 hover:text-red-500 hover:bg-red-50 transition-colors ${
+            collapsed ? 'justify-center px-0 py-2.5' : 'px-5 py-2.5'
+          }`}
+        >
+          <LogOut size={16} />
+          {!collapsed && <span className="text-[13px] font-medium">{t.dashboard.signOut}</span>}
+          {collapsed && (
+            <span className="pointer-events-none absolute left-full ml-2 px-2.5 py-1 rounded-md bg-black text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-lg z-50">
+              {t.dashboard.signOut}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={toggle}
+          className="flex items-center justify-center w-full h-10 border-t border-black/5 text-black/30 hover:text-black hover:bg-black/5 transition-colors"
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      </div>
     </aside>
   );
 }
