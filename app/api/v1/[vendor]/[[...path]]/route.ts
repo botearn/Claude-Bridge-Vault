@@ -214,14 +214,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Balance check: if key has an owner, verify they have funds
+    // Resolve key owner for post-call billing (negative balance allowed)
     const keyUserId = (keyData as { userId?: string }).userId;
-    if (keyUserId) {
-      const balance = await getBalance(keyUserId);
-      if (balance <= 0) {
-        return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 });
-      }
-    }
 
     let rawBody = await req.text();
     let model = safeModelFromBody(rawBody);

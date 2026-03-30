@@ -33,22 +33,7 @@ export async function deductBalance(
   const cents = Math.round(amountUsd * 100);
   if (cents <= 0) return { ok: true, balance: await getBalance(userId) };
 
-  // Use Lua script for atomic check-and-deduct
-  const script = `
-    local key = KEYS[1]
-    local amount = tonumber(ARGV[1])
-    local current = tonumber(redis.call('GET', key) or '0')
-    if current < amount then
-      return -1
-    end
-    local new_val = redis.call('DECRBY', key, amount)
-    return new_val
-  `;
-
-  const result = await redis.eval(script, [balanceKey(userId)], [cents]) as number;
-
-  if (result === -1) {
-    return { ok: false, balance: await getBalance(userId) };
-  }
-  return { ok: true, balance: result / 100 };
+  // Atomic deduct — allows negative balance (pay-as-you-go)
+  const newCents = await redis.decrby(balanceKey(userId), cents);
+  return { ok: true, balance: newCents / 100 };
 }
