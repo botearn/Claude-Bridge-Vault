@@ -154,7 +154,15 @@ export default function VaultDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2">
+            {balance !== null && (
+              <div className="flex items-center gap-1 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm font-mono tabular-nums">
+                <Wallet size={13} className={balance >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'} />
+                <span className={balance >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
+                  ${balance.toFixed(2)}
+                </span>
+              </div>
+            )}
             <button
               onClick={() => setShowStripe(true)}
               className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] text-sm text-[var(--text-2)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/5 transition-all duration-[var(--duration-normal)]"
