@@ -98,9 +98,16 @@ export default function VaultDashboard() {
     const payment = sp.get('payment');
     if (payment === 'success') {
       setPaymentToast(t.dashboard.paymentSuccess);
+      // Poll balance a few times — webhook may arrive after redirect
       fetchBalance();
+      const pollIds = [2000, 5000, 10000].map(ms =>
+        setTimeout(() => fetchBalance(), ms),
+      );
       if (toastTimer.current) clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(() => setPaymentToast(''), 4000);
+      toastTimer.current = setTimeout(() => {
+        setPaymentToast('');
+        pollIds.forEach(clearTimeout);
+      }, 12000);
       window.history.replaceState({}, '', '/vault');
     } else if (payment === 'cancelled') {
       setPaymentToast(t.dashboard.paymentCancelled);
