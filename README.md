@@ -107,9 +107,11 @@ cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × o
 ### Billing Flow
 
 1. User tops up balance via Stripe ($5 / $10 / $20 / $50 / $100)
-2. Balance stored in Redis as micro-cents (1 USD = 1,000,000 units) for sub-cent precision
-3. Each API call: proxy extracts token usage from upstream response, calculates cost, deducts from user balance atomically
-4. Negative balance is allowed (pay-as-you-go, no hard cutoff)
+2. Balance stored in Redis as micro-cents (1 USD = 1,000,000 units) for sub-cent precision ($0.000001 granularity)
+3. Cost is deducted **after** a successful response — failed/errored upstream requests are not charged
+4. For streaming responses, tokens are extracted from the final SSE message event; for non-streaming, from the JSON response body
+5. Negative balance is allowed — requests are never rejected due to insufficient balance (pay-as-you-go model)
+6. Price tables are hardcoded in `lib/billing.ts` and match upstream vendor official pricing at 1:1 (no markup)
 
 ---
 
