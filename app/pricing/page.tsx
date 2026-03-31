@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Tag, ArrowLeft, Wallet } from 'lucide-react';
-import { ANTHROPIC_PRICES, OPENAI_COMPAT_PRICES, YOURAGENT_PRICE_MULTIPLIER } from '@/lib/billing';
+import { ANTHROPIC_PRICES, OPENAI_COMPAT_PRICES } from '@/lib/billing';
 import { StripeCheckoutModal } from '@/components/StripeCheckoutModal';
 import { useLang } from '@/components/LangContext';
 
@@ -25,19 +25,7 @@ export default function PricingPage() {
   const p = t.pricing;
   const [showTopUp, setShowTopUp] = useState(false);
 
-  const pct = YOURAGENT_PRICE_MULTIPLIER * 100;
-
   const SECTIONS = [
-    {
-      label: p.youragentLabel,
-      sublabel: p.youragentSublabel(pct),
-      accent: 'text-emerald-600',
-      rows: [
-        { model: 'claude-opus-4-6',           input: ANTHROPIC_PRICES['claude-opus-4-6'].input * YOURAGENT_PRICE_MULTIPLIER,           output: ANTHROPIC_PRICES['claude-opus-4-6'].output * YOURAGENT_PRICE_MULTIPLIER },
-        { model: 'claude-sonnet-4-6',          input: ANTHROPIC_PRICES['claude-sonnet-4-6'].input * YOURAGENT_PRICE_MULTIPLIER,          output: ANTHROPIC_PRICES['claude-sonnet-4-6'].output * YOURAGENT_PRICE_MULTIPLIER },
-        { model: 'claude-haiku-4-5-20251001',  input: ANTHROPIC_PRICES['claude-haiku-4-5-20251001'].input * YOURAGENT_PRICE_MULTIPLIER,  output: ANTHROPIC_PRICES['claude-haiku-4-5-20251001'].output * YOURAGENT_PRICE_MULTIPLIER },
-      ] as PricingRow[],
-    },
     {
       label: p.claudeLabel,
       sublabel: p.claudeSublabel,

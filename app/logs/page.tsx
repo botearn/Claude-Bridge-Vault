@@ -49,7 +49,7 @@ function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse bg-black/6 rounded ${className ?? ''}`} />;
 }
 
-const VENDORS = ['', 'claude', 'youragent', 'yunwu'] as const;
+const VENDORS = ['', 'claude', 'yunwu'] as const;
 
 export default function LogsPage() {
   const { t } = useLang();

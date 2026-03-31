@@ -5,3 +5,5 @@ tsconfig.tsbuildinfo
 .env
 .DS_Store
 E
+.vercel
+.env*.local

@@ -9,14 +9,6 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
     keyPrefix: 'claude',
     basePath: '/api/v1/claude',
   },
-  youragent: {
-    label: 'YourAgent',
-    endpoint: 'https://your-agent.cc/api/v1/messages',
-    authStyle: 'x-api-key',
-    envKey: 'YOURAGENT_MASTER_KEY',
-    keyPrefix: 'youragent',
-    basePath: '/api/v1/youragent',
-  },
   yunwu: {
     label: 'Yunwu',
     endpoint: 'https://yunwu.ai/v1/chat/completions',
@@ -24,6 +16,14 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
     envKey: 'YUNWU_MASTER_KEY',
     keyPrefix: 'yunwu',
     basePath: '/api/v1/yunwu',
+  },
+  tokenutopia: {
+    label: 'TokenUtopia',
+    endpoint: 'https://tokenutopia.ai/v1/messages',
+    authStyle: 'x-api-key',
+    envKey: 'TOKENUTOPIA_MASTER_KEY',
+    keyPrefix: 'tokenutopia',
+    basePath: '/api/v1/tokenutopia',
   },
 };
 
@@ -37,11 +37,12 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'Claude Sonnet 4', value: 'claude-sonnet-4-20250514' },
     { label: 'Claude Opus 4', value: 'claude-opus-4-20250514' },
   ],
-  youragent: [
+  tokenutopia: [
     { label: 'Claude Opus 4.6', value: 'claude-opus-4-6' },
     { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6' },
     { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001' },
     { label: 'Claude Sonnet 4', value: 'claude-sonnet-4-20250514' },
+    { label: 'Claude Opus 4', value: 'claude-opus-4-20250514' },
   ],
   yunwu: [
     // Claude (via Yunwu)
@@ -76,5 +77,5 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
 };
 
 export function isValidVendor(v: unknown): v is VendorId {
-  return v === 'claude' || v === 'youragent' || v === 'yunwu';
+  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia';
 }

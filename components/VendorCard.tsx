@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Pencil, Check, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { VENDOR_CONFIG } from '@/lib/vendors';
 import type { VendorId, SubKeyData, KeyScope } from '@/lib/types';
 import { KeyTable } from './KeyTable';
 import { useLang } from './LangContext';
 import { onVaultSync } from '@/lib/vaultSync';
-import { estimateClaudeOfficialCostUsd } from '@/lib/billing';
 
 interface KeyRow extends SubKeyData {
   key: string;
@@ -31,38 +29,7 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
   const [activeGroup, setActiveGroup] = useState<string>('');
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
-  const [budgetUsd, setBudgetUsd] = useState<number>(20);
-  const [editingBudget, setEditingBudget] = useState(false);
-  const [budgetInput, setBudgetInput] = useState('');
-  const budgetInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (vendor !== 'youragent') return;
-    fetch('/api/v1/manage/settings')
-      .then(r => r.json())
-      .then((d: { youagentBudgetUsd?: number }) => {
-        if (typeof d.youagentBudgetUsd === 'number') setBudgetUsd(d.youagentBudgetUsd);
-      })
-      .catch(() => {});
-  }, [vendor]);
-
-  const startEditBudget = () => {
-    setBudgetInput(String(budgetUsd));
-    setEditingBudget(true);
-    setTimeout(() => budgetInputRef.current?.select(), 0);
-  };
-
-  const saveBudget = async () => {
-    const val = parseFloat(budgetInput);
-    if (!Number.isFinite(val) || val < 0) { setEditingBudget(false); return; }
-    const res = await fetch('/api/v1/manage/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youagentBudgetUsd: val }),
-    });
-    if (res.ok) setBudgetUsd(val);
-    setEditingBudget(false);
-  };
 
   const summary = keys.reduce(
     (acc, k) => {
@@ -76,13 +43,6 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
   );
 
   const totalTokens = summary.inputTokens + summary.outputTokens;
-  const claudeOfficialCostUsd = estimateClaudeOfficialCostUsd(undefined, {
-    inputTokens: summary.inputTokens,
-    outputTokens: summary.outputTokens,
-  });
-
-  const budgetRemainingUsd = Math.max(0, budgetUsd - summary.costUsd);
-  const diffUsd = claudeOfficialCostUsd - summary.costUsd;
   const formatUsd = (n: number) => {
     if (!Number.isFinite(n)) return '—';
     if (n === 0) return '$0.00';
@@ -186,7 +146,7 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
             {/* Usage + Cost panel — all vendors */}
             <div className="border border-black/10 rounded-xl overflow-hidden">
               {/* Stats row */}
-              <div className={`grid ${vendor === 'youragent' ? 'grid-cols-4' : 'grid-cols-3'} divide-x divide-black/5`}>
+              <div className="grid grid-cols-3 divide-x divide-black/5">
                 <div className="px-4 py-3 text-center">
                   <div className="text-[10px] uppercase tracking-widest text-black/40 mb-1">{t.vendorCard.summaryUsage}</div>
                   <div className="text-lg font-semibold font-mono tabular-nums">{summary.calls.toLocaleString()}</div>
@@ -196,58 +156,17 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
                   <div className="text-lg font-semibold font-mono tabular-nums">{totalTokens ? totalTokens.toLocaleString() : '—'}</div>
                 </div>
                 <div className="px-4 py-3 text-center">
-                  <div className="text-[10px] uppercase tracking-widest text-black/40 mb-1">
-                    {vendor === 'youragent' ? t.vendorCard.budgetUsed : t.vendorCard.summaryCost}
-                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-black/40 mb-1">{t.vendorCard.summaryCost}</div>
                   <div className="text-lg font-bold font-mono tabular-nums">
                     {keys.some(k => k.costUsd != null) ? formatUsd(summary.costUsd) : '—'}
                   </div>
                 </div>
-                {vendor === 'youragent' && (
-                  <div className="px-4 py-3 text-center bg-green-50/50">
-                    <div className="text-[10px] uppercase tracking-widest text-green-600 mb-1">{t.vendorCard.savings}</div>
-                    <div className="text-lg font-bold font-mono tabular-nums text-green-600">{formatUsd(diffUsd)}</div>
-                  </div>
-                )}
               </div>
-
-              {/* YourAgent: official comparison + budget */}
-              {vendor === 'youragent' && (
-                <div className="border-t border-black/5 px-4 py-2.5 flex items-center justify-between bg-black/[0.02]">
-                  <span className="text-[11px] text-black/40 font-mono">
-                    {t.vendorCard.claudeOfficial}: <span className="line-through">{formatUsd(claudeOfficialCostUsd)}</span>
-                  </span>
-                  <span className="text-[11px] font-semibold text-black/60 flex items-center gap-1.5">
-                    {t.vendorCard.budgetLabel}{' '}
-                    {editingBudget ? (
-                      <>
-                        $<input
-                          ref={budgetInputRef}
-                          value={budgetInput}
-                          onChange={e => setBudgetInput(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') saveBudget(); if (e.key === 'Escape') setEditingBudget(false); }}
-                          className="w-16 border border-black/20 rounded px-1 text-black font-mono text-[11px] outline-none focus:border-black/40"
-                        />
-                        <button onClick={saveBudget} className="text-black/50 hover:text-green-600"><Check size={11} /></button>
-                        <button onClick={() => setEditingBudget(false)} className="text-black/50 hover:text-red-500"><X size={11} /></button>
-                      </>
-                    ) : (
-                      <>
-                        ${budgetUsd % 1 === 0 ? budgetUsd.toFixed(0) : budgetUsd.toFixed(2)}
-                        <button onClick={startEditBudget} className="text-black/30 hover:text-black/60"><Pencil size={10} /></button>
-                        <span className="text-black/30 font-normal ml-1">({t.vendorCard.budgetRemaining} {formatUsd(budgetRemainingUsd)})</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-              )}
 
               {/* Pricing note — all vendors */}
               <div className="px-4 py-2 bg-black/[0.015] border-t border-black/5">
                 <p className="text-[10px] text-black/35 leading-relaxed">
-                  {vendor === 'youragent' ? t.vendorCard.costNote
-                    : vendor === 'claude' ? t.vendorCard.costNoteClaude
-                    : t.vendorCard.costNoteYunwu}
+                  {vendor === 'claude' ? t.vendorCard.costNoteClaude : t.vendorCard.costNoteYunwu}
                 </p>
               </div>
             </div>

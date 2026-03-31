@@ -10,9 +10,9 @@ import { emitVaultSync } from '@/lib/vaultSync';
 // All models come from yunwu (broadest coverage: Claude, OpenAI, Google, etc.)
 const ALL_MODELS = VENDOR_MODELS.yunwu;
 
-// Derive vendor from model — claude models go through youragent (cheaper), rest via yunwu
+// Derive vendor from model — claude models go through claude, rest via yunwu
 function modelToVendor(model: string): VendorId {
-  if (model.startsWith('claude-')) return 'youragent';
+  if (model.startsWith('claude-')) return 'claude';
   return 'yunwu';
 }
 

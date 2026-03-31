@@ -83,7 +83,7 @@ async function extractTokensFromSSE(
             realModel = evt.model;
           }
 
-          if (vendor === 'claude' || vendor === 'youragent') {
+          if (vendor === 'claude') {
             // Anthropic SSE: message_start has input, message_delta has output
             if (evt.type === 'message_start') {
               const msg = evt.message as Record<string, unknown> | undefined;

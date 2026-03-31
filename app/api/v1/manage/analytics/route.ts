@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
-import { fetchYASync } from '@/lib/youragent-sync';
 import { getUsageLogs } from '@/lib/usage-log';
 import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 import type { SubKeyData } from '@/lib/types';
@@ -39,13 +38,12 @@ export async function GET(req: NextRequest) {
   const session = token ? await verifySessionToken(token) : null;
   const isAdmin = session?.role === 'admin';
 
-  // Parallel fetch — keys, daily counts, youragent sync, and recent latency logs
-  const [rawKeys, rawCounts, yaRaw, recentLogs] = await Promise.all([
+  // Parallel fetch — keys, daily counts, and recent latency logs
+  const [rawKeys, rawCounts, recentLogs] = await Promise.all([
     redis.hgetall<Record<string, string>>('vault:subkeys'),
     dates.length > 0
       ? redis.mget<(string | null)[]>(...dates.map(d => `vault:daily:calls:${d}`) as [string, ...string[]])
       : Promise.resolve([] as (string | null)[]),
-    redis.get('vault:youragent:sync').catch(() => null),
     getUsageLogs({ limit: 200 }).catch(() => []),
   ]);
 
@@ -139,11 +137,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  let yaSync = null;
-  try {
-    if (yaRaw) yaSync = typeof yaRaw === 'string' ? JSON.parse(yaRaw as string) : yaRaw;
-  } catch { /* ignore */ }
-
   // Optional: per-key daily breakdown
   const wantDailyPerKey = url.searchParams.get('daily') === 'per-key';
   const filterKey = url.searchParams.get('key');
@@ -181,25 +174,7 @@ export async function GET(req: NextRequest) {
     byVendor,
     keyHealth,
     dailyCalls,
-    youragentSync: yaSync,
     ...(dailyKeyUsage ? { dailyKeyUsage } : {}),
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-// POST ?action=sync-youragent — trigger real data sync from your-agent.cc
-export async function POST(req: NextRequest) {
-  const url = new URL(req.url);
-  if (url.searchParams.get('action') !== 'sync-youragent') {
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-  }
-  const masterKey = process.env.YOURAGENT_MASTER_KEY?.split(',')[0].trim();
-  if (!masterKey) {
-    return NextResponse.json({ error: 'YOURAGENT_MASTER_KEY not configured' }, { status: 500 });
-  }
-  try {
-    const data = await fetchYASync(masterKey);
-    return NextResponse.json({ ok: true, syncedAt: data.syncedAt, totalCost: data.keyInfo.totalCost, totalTokens: data.total.allTokens });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 502 });
-  }
-}

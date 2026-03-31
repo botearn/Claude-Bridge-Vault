@@ -207,7 +207,6 @@ export default function DocsPage() {
                 headers={[d.vendor, d.path, d.auth, d.format]}
                 rows={[
                   ['Claude', '/api/v1/claude', 'x-api-key', 'Anthropic Messages'],
-                  ['YourAgent', '/api/v1/youragent', 'x-api-key', 'Anthropic Messages'],
                   ['Yunwu', '/api/v1/yunwu', 'x-api-key', 'OpenAI Chat Completions'],
                 ]}
               />
@@ -312,7 +311,7 @@ Content-Type: application/json
               <Table
                 headers={['Vendor', 'Input Tokens', 'Output Tokens']}
                 rows={[
-                  ['Claude / YourAgent', 'usage.input_tokens', 'usage.output_tokens'],
+                  ['Claude', 'usage.input_tokens', 'usage.output_tokens'],
                   ['Yunwu (OpenAI)', 'usage.prompt_tokens', 'usage.completion_tokens'],
                 ]}
               />
@@ -323,7 +322,6 @@ Content-Type: application/json
                 headers={['Vendor', 'Models', 'Pricing Source']}
                 rows={[
                   ['Claude', 'Opus 4.6/4, Sonnet 4.6/4, Haiku 4.5', 'Anthropic official'],
-                  ['YourAgent', 'Same as Claude', 'Claude price x 4%'],
                   ['Yunwu', 'See below (multi-vendor)', 'Per-vendor official pricing'],
                 ]}
               />
@@ -406,7 +404,6 @@ FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
               <Block>{`sk-vault-{vendor}-{random8chars}
 
 sk-vault-claude-a1b2c3d4
-sk-vault-youragent-z9y8x7w6
 sk-vault-yunwu-m3n4o5p6`}</Block>
             </Section>
 

@@ -14,7 +14,7 @@ export function buildUpstreamRequest(
 ): UpstreamRequest {
   const config = VENDOR_CONFIG[vendor];
 
-  if (vendor === 'claude' || vendor === 'youragent') {
+  if (vendor === 'claude') {
     return {
       url: config.endpoint,
       headers: {

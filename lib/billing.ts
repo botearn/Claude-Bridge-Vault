@@ -40,7 +40,6 @@ export function extractTokenUsage(vendor: VendorId, data: UsageLike): TokenUsage
 // Price tables: best-effort estimates (USD per 1M tokens)
 // All costs are in USD. These are official API list prices, NOT actual billed amounts.
 // - Claude: Anthropic official pricing
-// - YourAgent: Claude official × 4% (YOURAGENT_PRICE_MULTIPLIER) — update if pricing changes
 // - Yunwu: OpenAI official pricing — TODO: update to Yunwu's actual reseller pricing when available
 
 export const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
@@ -105,12 +104,8 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
 // Vendor → price table mapping
 const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output: number }>> = {
   claude:    ANTHROPIC_PRICES,
-  youragent: ANTHROPIC_PRICES,
   yunwu:     OPENAI_COMPAT_PRICES,
 };
-
-// YourAgent pricing rule: same token usage costs 4% of official Claude.
-export const YOURAGENT_PRICE_MULTIPLIER = 0.04;
 
 function lookupPrice(vendor: string, model: string | undefined): { input: number; output: number } {
   const table = VENDOR_PRICE_TABLES[vendor] ?? ANTHROPIC_PRICES;
@@ -127,13 +122,8 @@ function lookupPrice(vendor: string, model: string | undefined): { input: number
 
 export function estimateVendorCostUsd(vendor: VendorId, model: string | undefined, usage: TokenUsage): number {
   const price = lookupPrice(vendor, model);
-  const baseCost = (usage.inputTokens / 1_000_000) * price.input
-                 + (usage.outputTokens / 1_000_000) * price.output;
-
-  if (vendor === 'youragent') {
-    return baseCost * YOURAGENT_PRICE_MULTIPLIER;
-  }
-  return baseCost;
+  return (usage.inputTokens / 1_000_000) * price.input
+       + (usage.outputTokens / 1_000_000) * price.output;
 }
 
 // Keep backward compat for any callers
