@@ -6,18 +6,18 @@ const CACHE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 export async function GET() {
   const raw = await redis.hgetall<Record<string, string>>(SETTINGS_KEY);
-  const settings = {
-    youagentBudgetUsd: raw?.youagentBudgetUsd != null ? parseFloat(raw.youagentBudgetUsd) : 20,
-  };
-  return NextResponse.json(settings, { headers: CACHE_HEADERS });
+  return NextResponse.json(raw ?? {}, { headers: CACHE_HEADERS });
 }
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json() as Record<string, unknown>;
   const updates: Record<string, string> = {};
 
-  if (typeof body.youagentBudgetUsd === 'number' && body.youagentBudgetUsd >= 0) {
-    updates.youagentBudgetUsd = String(body.youagentBudgetUsd);
+  // Accept any string/number settings
+  for (const [k, v] of Object.entries(body)) {
+    if (typeof v === 'string' || typeof v === 'number') {
+      updates[k] = String(v);
+    }
   }
 
   if (Object.keys(updates).length === 0) {

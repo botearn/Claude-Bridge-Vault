@@ -28,7 +28,7 @@ Multi-vendor API key management platform. Users register, top up balance, create
 
 ### For Admins
 - All of the above, plus:
-- Filter keys by vendor (YourAgent / Claude / Yunwu) and scope (Internal / External)
+- Filter keys by vendor (Claude / TokenUtopia / Yunwu) and scope (Internal / External)
 - Analytics page: call trends, vendor distribution, key health, latency percentiles
 - Manual balance top-up for any user by email
 - Per-key daily usage breakdown
@@ -54,13 +54,62 @@ Non-admin users only see and can modify their own keys. Enforced server-side on 
 
 ## Vendors
 
-| Vendor | Endpoint | Models |
-|--------|----------|--------|
-| `youragent` | your-agent.cc | Claude (4% of official price) |
-| `claude` | api.anthropic.com | Claude (official pricing) |
-| `yunwu` | yunwu.ai | Claude, GPT-4, Gemini, Grok, DeepSeek |
+| Vendor | Endpoint | Auth Style | Models |
+|--------|----------|------------|--------|
+| `claude` | api.anthropic.com | x-api-key | Claude (official) |
+| `tokenutopia` | tokenutopia.ai | x-api-key | Claude (via TokenUtopia) |
+| `yunwu` | yunwu.ai | Bearer | Claude, GPT-4, Gemini, Grok, DeepSeek |
 
-When a user creates a key, the vendor is auto-derived from the selected model (Claude models → YourAgent, everything else → Yunwu). Users never see the vendor concept.
+Users select a vendor when creating a key, then pick a model from that vendor's catalog.
+
+---
+
+## Pricing
+
+All usage is billed at **1:1 upstream API official pricing** (no markup). Cost is calculated per request based on actual token consumption:
+
+```
+cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × outputPrice
+```
+
+### Claude / TokenUtopia (USD per 1M tokens)
+
+| Model | Input | Output |
+|-------|-------|--------|
+| Claude Opus 4.6 | $15.00 | $75.00 |
+| Claude Sonnet 4.6 | $3.00 | $15.00 |
+| Claude Sonnet 4 | $3.00 | $15.00 |
+| Claude Haiku 4.5 | $0.80 | $4.00 |
+
+### Yunwu — OpenAI (USD per 1M tokens)
+
+| Model | Input | Output |
+|-------|-------|--------|
+| GPT-4.1 | $2.00 | $8.00 |
+| GPT-4.1 mini | $0.40 | $1.60 |
+| GPT-4.1 nano | $0.10 | $0.40 |
+| GPT-4o | $2.50 | $10.00 |
+| GPT-4o mini | $0.15 | $0.60 |
+| o3 | $10.00 | $40.00 |
+| o4-mini | $1.10 | $4.40 |
+
+### Yunwu — Google / xAI / DeepSeek (USD per 1M tokens)
+
+| Model | Input | Output |
+|-------|-------|--------|
+| Gemini 2.5 Pro | $1.25 | $10.00 |
+| Gemini 2.5 Flash | $0.15 | $0.60 |
+| Grok 3 | $3.00 | $15.00 |
+| Grok 3 mini | $0.30 | $0.50 |
+| DeepSeek Chat | $0.27 | $1.10 |
+| DeepSeek Reasoner | $0.55 | $2.19 |
+
+### Billing Flow
+
+1. User tops up balance via Stripe ($5 / $10 / $20 / $50 / $100)
+2. Balance stored in Redis as micro-cents (1 USD = 1,000,000 units) for sub-cent precision
+3. Each API call: proxy extracts token usage from upstream response, calculates cost, deducts from user balance atomically
+4. Negative balance is allowed (pay-as-you-go, no hard cutoff)
 
 ---
 
@@ -71,16 +120,16 @@ All API calls go through `/api/v1/[vendor]/...`. The proxy:
 1. Looks up the sub-key in Redis
 2. Checks expiry (`expiresAt`) → 403 if expired
 3. Checks call quota (`usage >= totalQuota`) → 429 if exceeded
-4. Checks balance → 402 if insufficient
+4. Checks model binding → 403 if key is bound to a different model
 5. Forwards request to upstream vendor with the master key
-6. On success: increments usage, records tokens + cost, deducts balance
+6. On success: increments usage, records tokens + cost, deducts from owner's balance
 
 ### Usage Examples
 
-**YourAgent / Claude (Anthropic format)**
+**Claude / TokenUtopia (Anthropic format)**
 ```bash
-curl https://www.sitesfy.run/api/v1/youragent \
-  -H "x-api-key: sk-vault-youragent-xxxxxxxx" \
+curl https://www.sitesfy.run/api/v1/tokenutopia \
+  -H "x-api-key: sk-vault-tokenutopia-xxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{"model":"claude-opus-4-6","max_tokens":128,"messages":[{"role":"user","content":"Hello"}]}'
@@ -102,8 +151,8 @@ curl https://www.sitesfy.run/api/v1/yunwu \
 vault:subkeys                    hash  key=sk-vault-{vendor}-{random}, value=SubKeyData JSON
 vault:users                      hash  key=email, value=UserData JSON
 vault:groups                     hash  key={vendor}:{groupId}, value={label,vendor,createdAt}
-vault:settings                   hash  field=youagentBudgetUsd
-vault:balance:{userId}           string  balance in USD
+vault:settings                   hash  general settings
+vault:balance:{userId}           string  balance in micro-cents (1 USD = 1,000,000 units)
 vault:daily:calls:{YYYY-MM-DD}  integer  global daily call counter, TTL 35d
 vault:daily:keys:{YYYY-MM-DD}   hash  per-key daily usage (calls/tokens/cost), TTL 35d
 vault:usage:log                  list  recent proxy call logs (last 1000)
@@ -115,7 +164,7 @@ vault:accounts                   hash  key=acc-{id}, value=AccountRecord JSON (u
 ```ts
 {
   name: string
-  vendor: 'claude' | 'youragent' | 'yunwu'
+  vendor: 'claude' | 'tokenutopia' | 'yunwu'
   group: string
   scope: 'internal' | 'external'
   model?: string          // locked model for this key
@@ -143,7 +192,7 @@ UPSTASH_REDIS_REST_TOKEN=
 
 # Vendor master keys (comma-separated for multiple)
 CLAUDE_MASTER_KEY=
-YOURAGENT_MASTER_KEY=
+TOKENUTOPIA_MASTER_KEY=
 YUNWU_MASTER_KEY=
 
 # Auth
@@ -202,7 +251,7 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/vault`, l
 - **Expiry**: Date-based key expiry (`expiresAt`)
 - **Rate limiting**: Per-key sliding window (RPM / TPM)
 - **Master key rotation**: Round-robin + auto-failover on 401/429/5xx
-- **Cost tracking**: Per-vendor pricing (Claude official, YourAgent 4%, OpenAI for Yunwu)
+- **Cost tracking**: Per-vendor pricing at 1:1 upstream rates (see Pricing section)
 - **i18n**: English / Chinese toggle
 - **Vendor accounts**: Encrypted credential vault for third-party API providers (admin-only, page password + AES-256-GCM)
 - **Admin sidebar**: Admin-only pages (Analytics, Monitoring, Channels, Accounts) hidden from non-admin users
