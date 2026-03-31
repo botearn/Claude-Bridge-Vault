@@ -52,7 +52,7 @@ export function TopUpModal({ onClose, onSuccess, defaultEmail = '' }: TopUpModal
         setError(data.error || 'Failed');
       }
     } catch {
-      setError('Network error');
+      setError(t.dashboard.topUpNetworkError);
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ export function TopUpModal({ onClose, onSuccess, defaultEmail = '' }: TopUpModal
                 min="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Custom amount (USD)"
+                placeholder={t.dashboard.topUpCustomAmount}
                 className="focus-ring w-full border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 text-sm font-mono bg-[var(--surface-raised)] focus:border-[var(--border-hover)] transition-colors"
               />
             </div>

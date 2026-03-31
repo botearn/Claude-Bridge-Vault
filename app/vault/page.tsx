@@ -329,7 +329,7 @@ export default function VaultDashboard() {
 
       {paymentToast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-[var(--radius-md)] border text-sm font-medium shadow-vault-lg transition-all ${
-          paymentToast.includes('success') || paymentToast.includes('成功')
+          paymentToast === t.dashboard.paymentSuccess
             ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]'
             : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-2)]'
         }`}>

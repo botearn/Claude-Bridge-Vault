@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Pencil, Check, X, ToggleLeft, ToggleRight, ChevronDown, RefreshCw, Activity, AlertTriangle, CheckCircle2, ZapOff } from 'lucide-react';
 import type { VendorId } from '@/lib/types';
 import { VENDOR_CONFIG } from '@/lib/vendors';
+import { useLang } from '@/components/LangContext';
 
 interface ChannelHealth {
   failCount: number;
@@ -27,24 +28,31 @@ interface Channel {
 
 const VENDORS: VendorId[] = ['claude', 'youragent', 'yunwu'];
 
-function HealthBadge({ health }: { health: ChannelHealth }) {
+interface HealthBadgeProps {
+  health: ChannelHealth;
+  statusHealthy: string;
+  statusCircuitOpen: string;
+  statusFlicker: (n: number) => string;
+}
+
+function HealthBadge({ health, statusHealthy, statusCircuitOpen, statusFlicker }: HealthBadgeProps) {
   if (health.circuitOpen) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200">
-        <ZapOff size={9} /> 熔断
+        <ZapOff size={9} /> {statusCircuitOpen}
       </span>
     );
   }
   if (health.failCount > 0) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">
-        <AlertTriangle size={9} /> 抖动 {health.failCount}次
+        <AlertTriangle size={9} /> {statusFlicker(health.failCount)}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-600 border border-green-200">
-      <CheckCircle2 size={9} /> 健康
+      <CheckCircle2 size={9} /> {statusHealthy}
     </span>
   );
 }
@@ -56,6 +64,7 @@ function fmtTime(iso?: string) {
 }
 
 export default function ChannelsPage() {
+  const { t } = useLang();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeVendor, setActiveVendor] = useState<VendorId>('claude');
   const [loading, setLoading] = useState(true);
@@ -120,7 +129,7 @@ export default function ChannelsPage() {
   }
 
   async function handleDelete(ch: Channel) {
-    if (!confirm(`删除渠道 "${ch.label}"？`)) return;
+    if (!confirm(`Delete channel "${ch.label}"?`)) return;
     const res = await fetch(`/api/v1/manage/channels?vendor=${ch.vendor}&id=${ch.id}`, { method: 'DELETE' });
     if (!res.ok) { setError('Failed to delete channel'); return; }
     await load();
@@ -179,9 +188,9 @@ export default function ChannelsPage() {
       <div className="max-w-4xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">渠道管理</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t.channels.title}</h1>
             <p className="text-[13px] text-[var(--text-2)] mt-0.5">
-              管理上游 API Key · 熔断阈值 3 次连续失败 · 5 分钟冷却后自动探活
+              {t.channels.subtitle}
             </p>
           </div>
           <div className="flex gap-2">
@@ -190,14 +199,14 @@ export default function ChannelsPage() {
               className="flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-[var(--radius-md)] text-sm text-[var(--text-2)] hover:bg-[var(--surface-hover)]"
             >
               <RefreshCw size={13} />
-              刷新
+              {t.channels.refresh}
             </button>
             <button
               onClick={() => { setShowAdd(true); setForm(f => ({ ...f, vendor: activeVendor })); }}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--accent-fg)] text-sm font-semibold rounded-[var(--radius-md)] hover:opacity-90 transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
-              添加渠道
+              {t.channels.addChannel}
             </button>
           </div>
         </div>
@@ -234,7 +243,7 @@ export default function ChannelsPage() {
           <div className="mb-4 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-vault">
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">厂商</label>
+                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">{t.channels.vendor}</label>
                 <div className="relative mt-1">
                   <select
                     value={form.vendor}
@@ -247,11 +256,11 @@ export default function ChannelsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">渠道名称</label>
+                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">{t.channels.channelName}</label>
                 <input
                   value={form.label}
                   onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                  placeholder="e.g. Primary Key"
+                  placeholder={t.channels.channelNamePlaceholder}
                   className="mt-1 w-full bg-[var(--bg)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -266,7 +275,7 @@ export default function ChannelsPage() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">权重</label>
+                <label className="text-[11px] font-medium text-[var(--text-3)] uppercase tracking-wide">{t.channels.weight}</label>
                 <input
                   value={form.weight}
                   onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
@@ -277,9 +286,9 @@ export default function ChannelsPage() {
             </div>
             {error && <p className="text-[var(--danger)] text-xs mb-2">{error}</p>}
             <div className="flex gap-2 justify-end">
-              <button onClick={() => { setShowAdd(false); setError(''); }} className="px-3 py-1.5 text-sm text-[var(--text-2)] border border-[var(--border)] rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)]">取消</button>
+              <button onClick={() => { setShowAdd(false); setError(''); }} className="px-3 py-1.5 text-sm text-[var(--text-2)] border border-[var(--border)] rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)]">{t.channels.cancel}</button>
               <button onClick={handleAdd} disabled={saving} className="px-4 py-1.5 text-sm bg-[var(--accent)] text-[var(--accent-fg)] font-medium rounded-[var(--radius-md)] hover:opacity-90 disabled:opacity-50">
-                {saving ? '保存中…' : '添加'}
+                {saving ? t.channels.saving : t.channels.add}
               </button>
             </div>
           </div>
@@ -288,10 +297,10 @@ export default function ChannelsPage() {
         {/* Channel list */}
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-vault overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-[var(--text-3)] text-sm">加载中…</div>
+            <div className="p-8 text-center text-[var(--text-3)] text-sm">{t.channels.loading}</div>
           ) : vendorChannels.length === 0 ? (
             <div className="p-8 text-center text-[var(--text-3)] text-sm">
-              暂无渠道。代理将回退到环境变量{' '}
+              {t.channels.noChannels}{' '}
               <code className="font-mono text-xs bg-[var(--surface-raised)] px-1.5 py-0.5 rounded">
                 {activeVendor.toUpperCase()}_MASTER_KEY
               </code>
@@ -300,12 +309,12 @@ export default function ChannelsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">名称 / Key</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">健康</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">最后错误</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">权重</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">启停</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">操作</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colName}</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colHealth}</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colLastError}</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colWeight}</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colToggle}</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">{t.channels.colActions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -321,13 +330,13 @@ export default function ChannelsPage() {
                           <input
                             value={editForm.label}
                             onChange={e => setEditForm(f => ({ ...f, label: e.target.value }))}
-                            placeholder="名称"
+                            placeholder={t.channels.namePlaceholder}
                             className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-sm focus:outline-none focus:border-[var(--accent)]"
                           />
                           <input
                             value={editForm.apiKey}
                             onChange={e => setEditForm(f => ({ ...f, apiKey: e.target.value }))}
-                            placeholder="新 Key（留空保持原来）"
+                            placeholder={t.channels.editKeyPlaceholder}
                             type="password"
                             className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent)]"
                           />
@@ -342,7 +351,12 @@ export default function ChannelsPage() {
 
                     {/* Health */}
                     <td className="px-4 py-3 text-center">
-                      <HealthBadge health={ch.health} />
+                      <HealthBadge
+                        health={ch.health}
+                        statusHealthy={t.channels.statusHealthy}
+                        statusCircuitOpen={t.channels.statusCircuitOpen}
+                        statusFlicker={t.channels.statusFlicker}
+                      />
                     </td>
 
                     {/* Last error */}
@@ -373,7 +387,7 @@ export default function ChannelsPage() {
 
                     {/* Toggle */}
                     <td className="px-4 py-3 text-center">
-                      <button onClick={() => handleToggle(ch)} title={ch.enabled ? '点击禁用' : '点击启用'}>
+                      <button onClick={() => handleToggle(ch)} title={ch.enabled ? t.channels.toggleEnable : t.channels.toggleDisable}>
                         {ch.enabled
                           ? <ToggleRight size={20} className="text-[var(--success)] mx-auto" />
                           : <ToggleLeft size={20} className="text-[var(--text-3)] mx-auto" />
@@ -394,7 +408,7 @@ export default function ChannelsPage() {
                           <button
                             onClick={() => handleProbe(ch)}
                             disabled={probingId === ch.id}
-                            title="发送探活请求"
+                            title={t.channels.probeHint}
                             className="p-1.5 rounded hover:bg-blue-50 text-blue-500 disabled:opacity-40"
                           >
                             <Activity size={14} className={probingId === ch.id ? 'animate-pulse' : ''} />
@@ -403,7 +417,7 @@ export default function ChannelsPage() {
                           {ch.health.circuitOpen && (
                             <button
                               onClick={() => handleResetCircuit(ch)}
-                              title="重置熔断器"
+                              title={t.channels.resetCircuitHint}
                               className="p-1.5 rounded hover:bg-yellow-50 text-yellow-600"
                             >
                               <RefreshCw size={14} />
@@ -426,9 +440,9 @@ export default function ChannelsPage() {
         )}
 
         <div className="mt-4 flex flex-col gap-1 text-[11px] text-[var(--text-4)]">
-          <p>• 代理优先级：启用 + 健康渠道（按权重加权随机）→ 熔断渠道冷却后探活 → 环境变量</p>
-          <p>• 连续失败 3 次自动熔断，5 分钟后允许一次探活请求，成功则自动恢复</p>
-          <p>• 点击 <Activity size={11} className="inline" /> 主动探活；点击 <RefreshCw size={11} className="inline" /> 手动重置熔断器</p>
+          <p>{t.channels.note1}</p>
+          <p>{t.channels.note2}</p>
+          <p>{t.channels.note3}</p>
         </div>
       </div>
     </div>
