@@ -103,8 +103,9 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
 
 // Vendor → price table mapping
 const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output: number }>> = {
-  claude:    ANTHROPIC_PRICES,
-  yunwu:     OPENAI_COMPAT_PRICES,
+  claude:       ANTHROPIC_PRICES,
+  tokenutopia:  ANTHROPIC_PRICES,
+  yunwu:        OPENAI_COMPAT_PRICES,
 };
 
 function lookupPrice(vendor: string, model: string | undefined): { input: number; output: number } {
