@@ -2,19 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { VENDOR_MODELS } from '@/lib/vendors';
+import { VENDOR_CONFIG, VENDOR_MODELS } from '@/lib/vendors';
 import type { VendorId } from '@/lib/types';
 import { ShareSnippet } from './ShareSnippet';
 import { emitVaultSync } from '@/lib/vaultSync';
 
-// All models come from yunwu (broadest coverage: Claude, OpenAI, Google, etc.)
-const ALL_MODELS = VENDOR_MODELS.yunwu;
-
-// Derive vendor from model — claude models go through claude, rest via yunwu
-function modelToVendor(model: string): VendorId {
-  if (model.startsWith('claude-')) return 'claude';
-  return 'yunwu';
-}
+const VENDOR_OPTIONS = Object.entries(VENDOR_CONFIG).map(([id, cfg]) => ({
+  id: id as VendorId,
+  label: cfg.label,
+}));
 
 interface CreateKeyModalProps {
   onClose: () => void;
@@ -22,12 +18,20 @@ interface CreateKeyModalProps {
 }
 
 export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
-  const [model, setModel] = useState(ALL_MODELS[0]?.value ?? '');
+  const [vendor, setVendor] = useState<VendorId>(VENDOR_OPTIONS[0].id);
+  const vendorModels = VENDOR_MODELS[vendor] ?? [];
+  const [model, setModel] = useState(vendorModels[0]?.value ?? '');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Reset model when vendor changes
+  useEffect(() => {
+    const models = VENDOR_MODELS[vendor] ?? [];
+    setModel(models[0]?.value ?? '');
+  }, [vendor]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -36,7 +40,7 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
   }, [onClose]);
 
   // Group models by provider for the select dropdown
-  const grouped = ALL_MODELS.reduce<Record<string, typeof ALL_MODELS>>((acc, m) => {
+  const grouped = vendorModels.reduce<Record<string, typeof vendorModels>>((acc, m) => {
     const g = m.group ?? 'Other';
     (acc[g] ??= []).push(m);
     return acc;
@@ -46,7 +50,6 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
     if (!name.trim() || !model) return;
     setLoading(true);
     setError('');
-    const vendor = modelToVendor(model);
     try {
       const res = await fetch('/api/v1/manage/keys', {
         method: 'POST',
@@ -105,7 +108,7 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
             >
               {copied ? '✓ Copied!' : 'Copy Key'}
             </button>
-            <ShareSnippet subKey={createdKey} vendor={modelToVendor(model)} />
+            <ShareSnippet subKey={createdKey} vendor={vendor} />
             <button
               onClick={onClose}
               className="w-full py-2.5 border border-black/15 rounded-lg text-sm text-black/60 hover:bg-black/5 transition-colors"
@@ -115,7 +118,23 @@ export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Model — primary required field */}
+            {/* Vendor */}
+            <div>
+              <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-2">
+                Vendor <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value as VendorId)}
+                className="w-full border border-black/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-black/40 bg-white"
+              >
+                {VENDOR_OPTIONS.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Model */}
             <div>
               <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-2">
                 Model <span className="text-red-400">*</span>
