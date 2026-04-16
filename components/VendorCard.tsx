@@ -166,7 +166,7 @@ export function VendorCard({ vendor, scope = 'internal' }: VendorCardProps) {
               {/* Pricing note — all vendors */}
               <div className="px-4 py-2 bg-black/[0.015] border-t border-black/5">
                 <p className="text-[10px] text-black/35 leading-relaxed">
-                  {vendor === 'claude' ? t.vendorCard.costNoteClaude : t.vendorCard.costNoteYunwu}
+                  {config.authStyle === 'x-api-key' ? t.vendorCard.costNoteClaude : t.vendorCard.costNoteYunwu}
                 </p>
               </div>
             </div>

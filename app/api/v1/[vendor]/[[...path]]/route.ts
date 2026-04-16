@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
-import { isValidVendor } from '@/lib/vendors';
+import { isValidVendor, VENDOR_CONFIG } from '@/lib/vendors';
 import { buildUpstreamRequest } from '@/lib/proxy';
 import { extractTokenUsage, estimateVendorCostUsd, safeModelFromBody } from '@/lib/billing';
 import { logEvent } from '@/lib/events';
@@ -11,6 +11,7 @@ import { getBalance, deductBalance } from '@/lib/balance';
 import { getChannelsForProxy, recordChannelSuccess, recordChannelFailure } from '@/lib/channels';
 import { checkRpmLimit, checkTpmLimit, getTpmUsage } from '@/lib/key-ratelimit';
 import { writeUsageLog } from '@/lib/usage-log';
+import { applySubKeyDelta } from '@/lib/subkey-mutate';
 import type { VendorId } from '@/lib/types';
 
 type RouteContext = {
@@ -83,7 +84,8 @@ async function extractTokensFromSSE(
             realModel = evt.model;
           }
 
-          if (vendor === 'claude') {
+          const isAnthropicStyle = VENDOR_CONFIG[vendor as VendorId]?.authStyle === 'x-api-key';
+          if (isAnthropicStyle) {
             // Anthropic SSE: message_start has input, message_delta has output
             if (evt.type === 'message_start') {
               const msg = evt.message as Record<string, unknown> | undefined;
@@ -94,7 +96,7 @@ async function extractTokensFromSSE(
               const usage = evt.usage as Record<string, number> | undefined;
               if (usage?.output_tokens) outputTokens = usage.output_tokens;
             }
-          } else if (vendor === 'yunwu') {
+          } else {
             // OpenAI-compatible SSE: final chunk contains usage with prompt_tokens + completion_tokens
             const usage = evt.usage as Record<string, number> | undefined;
             if (usage) {
@@ -239,7 +241,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // Inject stream_options for OpenAI-compatible vendors so usage is included in final SSE chunk
-    if (streaming && vendor === 'yunwu') {
+    if (streaming && VENDOR_CONFIG[vendor].authStyle === 'bearer') {
       try {
         const parsed = JSON.parse(rawBody);
         if (!parsed.stream_options?.include_usage) {
@@ -299,11 +301,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'All upstream channels failed' }, { status: 502 });
     }
 
-    // Increment call count + lastUsed (fire-and-forget)
+    // Increment call count + lastUsed (atomic, fire-and-forget)
     const now = new Date().toISOString();
-    void redis.hset('vault:subkeys', {
-      [subKey]: JSON.stringify({ ...keyData, usage: (kd.usage ?? 0) + 1, lastUsed: now }),
-    });
+    void applySubKeyDelta(subKey, { usageInc: 1, lastUsed: now });
 
     const today = now.slice(0, 10);
     void redis.incr(`vault:daily:calls:${today}`)
@@ -320,15 +320,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const costInc = estimateVendorCostUsd(vendor, effectiveModel, { inputTokens, outputTokens });
         console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ stream model=${effectiveModel ?? '?'} in=${inputTokens} out=${outputTokens} cost=$${costInc.toFixed(6)}`);
         void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens, outputTokens });
-        const latest = parseKeyRecord(await redis.hget('vault:subkeys', subKey)) ?? keyData;
-        const lk = latest as { inputTokens?: number; outputTokens?: number; costUsd?: number };
-        void redis.hset('vault:subkeys', {
-          [subKey]: JSON.stringify({
-            ...latest,
-            inputTokens: (lk.inputTokens ?? 0) + inputTokens,
-            outputTokens: (lk.outputTokens ?? 0) + outputTokens,
-            costUsd: (lk.costUsd ?? 0) + costInc,
-          }),
+        void applySubKeyDelta(subKey, {
+          inputTokensInc: inputTokens,
+          outputTokensInc: outputTokens,
+          costUsdInc: costInc,
         });
         void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
         // TPM accounting
@@ -376,15 +371,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
     console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ model=${effectiveModel ?? '?'} in=${inputInc} out=${outputInc} cost=$${costInc.toFixed(6)}`);
     void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens: inputInc, outputTokens: outputInc });
 
-    const latest = parseKeyRecord(await redis.hget('vault:subkeys', subKey)) ?? keyData;
-    const lk = latest as { inputTokens?: number; outputTokens?: number; costUsd?: number };
-    void redis.hset('vault:subkeys', {
-      [subKey]: JSON.stringify({
-        ...latest,
-        inputTokens: (lk.inputTokens ?? 0) + inputInc,
-        outputTokens: (lk.outputTokens ?? 0) + outputInc,
-        costUsd: (lk.costUsd ?? 0) + costInc,
-      }),
+    void applySubKeyDelta(subKey, {
+      inputTokensInc: inputInc,
+      outputTokensInc: outputInc,
+      costUsdInc: costInc,
     });
     void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
     // TPM accounting

@@ -14,7 +14,7 @@ export function buildUpstreamRequest(
 ): UpstreamRequest {
   const config = VENDOR_CONFIG[vendor];
 
-  if (vendor === 'claude') {
+  if (config.authStyle === 'x-api-key') {
     return {
       url: config.endpoint,
       headers: {
@@ -26,7 +26,7 @@ export function buildUpstreamRequest(
     };
   }
 
-  // yunwu (OpenAI-compatible)
+  // bearer (OpenAI-compatible)
   return {
     url: config.endpoint,
     headers: {

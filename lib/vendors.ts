@@ -25,6 +25,14 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
     keyPrefix: 'tokenutopia',
     basePath: '/api/v1/tokenutopia',
   },
+  palebluedot: {
+    label: 'PaleBlueDot',
+    endpoint: 'https://open.palebluedot.ai/v1/messages',
+    authStyle: 'x-api-key',
+    envKey: 'PALEBLUEDOT_MASTER_KEY',
+    keyPrefix: 'palebluedot',
+    basePath: '/api/v1/palebluedot',
+  },
 };
 
 // Available models per vendor (label shown in UI, value sent to upstream API)
@@ -43,6 +51,14 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001' },
     { label: 'Claude Sonnet 4', value: 'claude-sonnet-4-20250514' },
     { label: 'Claude Opus 4', value: 'claude-opus-4-20250514' },
+  ],
+  palebluedot: [
+    { label: 'Claude Opus 4.6', value: 'anthropic/claude-opus-4.6' },
+    { label: 'Claude Sonnet 4.6', value: 'anthropic/claude-sonnet-4.6' },
+    { label: 'Claude Opus 4.5', value: 'anthropic/claude-opus-4.5' },
+    { label: 'Claude Sonnet 4.5', value: 'anthropic/claude-sonnet-4.5' },
+    { label: 'Claude Haiku 4.5', value: 'anthropic/claude-haiku-4.5' },
+    { label: 'Claude Sonnet 4', value: 'anthropic/claude-sonnet-4' },
   ],
   yunwu: [
     // Claude (via Yunwu)
@@ -77,5 +93,5 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
 };
 
 export function isValidVendor(v: unknown): v is VendorId {
-  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia';
+  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia' || v === 'palebluedot';
 }

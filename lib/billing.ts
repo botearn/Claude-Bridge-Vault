@@ -60,6 +60,21 @@ export const ANTHROPIC_PRICES: Record<string, { input: number; output: number }>
   // Thinking variants (same price as base model)
   'claude-opus-4-6-thinking':  { input: 15.0,  output: 75.0  },
   'claude-sonnet-4-6-thinking':{ input: 3.0,   output: 15.0  },
+  // PaleBlueDot model IDs (anthropic/<tier>-<ver>, and response form anthropic/claude-<ver>-<tier>-*)
+  'anthropic/claude-opus-4.6':     { input: 15.0,  output: 75.0  },
+  'anthropic/claude-sonnet-4.6':   { input: 3.0,   output: 15.0  },
+  'anthropic/claude-opus-4.5':     { input: 15.0,  output: 75.0  },
+  'anthropic/claude-sonnet-4.5':   { input: 3.0,   output: 15.0  },
+  'anthropic/claude-haiku-4.5':    { input: 0.80,  output: 4.0   },
+  'anthropic/claude-sonnet-4':     { input: 3.0,   output: 15.0  },
+  'anthropic/claude-opus-4':       { input: 15.0,  output: 75.0  },
+  'anthropic/claude-4.6-opus':     { input: 15.0,  output: 75.0  },
+  'anthropic/claude-4.6-sonnet':   { input: 3.0,   output: 15.0  },
+  'anthropic/claude-4.5-opus':     { input: 15.0,  output: 75.0  },
+  'anthropic/claude-4.5-sonnet':   { input: 3.0,   output: 15.0  },
+  'anthropic/claude-4.5-haiku':    { input: 0.80,  output: 4.0   },
+  'anthropic/claude-4-sonnet':     { input: 3.0,   output: 15.0  },
+  'anthropic/claude-4-opus':       { input: 15.0,  output: 75.0  },
   __default__:                 { input: 3.0,   output: 15.0  },
 };
 
@@ -105,6 +120,7 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
 const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output: number }>> = {
   claude:       ANTHROPIC_PRICES,
   tokenutopia:  ANTHROPIC_PRICES,
+  palebluedot:  ANTHROPIC_PRICES,
   yunwu:        OPENAI_COMPAT_PRICES,
 };
 

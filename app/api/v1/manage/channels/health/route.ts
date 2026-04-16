@@ -51,9 +51,13 @@ export async function POST(req: NextRequest) {
     const ch = channels.find(c => c.id === id);
     if (!ch) return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
 
-    // Minimal probe: send a tiny message to the vendor
+    // Minimal probe: send a tiny message to the vendor (model varies by vendor ID scheme)
+    const probeModel =
+      ch.vendor === 'palebluedot' ? 'anthropic/claude-haiku-4.5' :
+      ch.vendor === 'yunwu'       ? 'gpt-4o-mini' :
+      'claude-haiku-4-5-20251001';
     const probeBody = JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: probeModel,
       max_tokens: 1,
       messages: [{ role: 'user', content: 'hi' }],
     });
