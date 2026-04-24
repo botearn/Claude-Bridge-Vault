@@ -15,10 +15,11 @@ const VENDOR_OPTIONS = Object.entries(VENDOR_CONFIG).map(([id, cfg]) => ({
 interface CreateKeyModalProps {
   onClose: () => void;
   onCreated: () => void;
+  initialVendor?: VendorId;
 }
 
-export function CreateKeyModal({ onClose, onCreated }: CreateKeyModalProps) {
-  const [vendor, setVendor] = useState<VendorId>(VENDOR_OPTIONS[0].id);
+export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyModalProps) {
+  const [vendor, setVendor] = useState<VendorId>(initialVendor ?? VENDOR_OPTIONS[0].id);
   const vendorModels = VENDOR_MODELS[vendor] ?? [];
   const [model, setModel] = useState(vendorModels[0]?.value ?? '');
   const [name, setName] = useState('');

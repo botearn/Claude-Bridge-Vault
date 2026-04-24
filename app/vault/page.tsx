@@ -319,7 +319,11 @@ export default function VaultDashboard() {
       </div>
 
       {showCreate && (
-        <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
+        <CreateKeyModal
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+          initialVendor={adminVendor || undefined}
+        />
       )}
 
       {showTopUp && (
