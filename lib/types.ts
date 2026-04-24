@@ -8,7 +8,7 @@ export interface UserData {
   createdAt: string;
 }
 
-export type VendorId = 'claude' | 'yunwu' | 'tokenutopia' | 'palebluedot' | 'clawos';
+export type VendorId = 'claude' | 'yunwu' | 'tokenutopia' | 'palebluedot' | 'clawos' | 'clawos-overseas';
 export type AuthStyle = 'x-api-key' | 'bearer';
 export type KeyScope = 'internal' | 'external';
 

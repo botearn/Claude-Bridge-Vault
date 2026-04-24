@@ -102,7 +102,8 @@ export function DocsModal({ onClose }: DocsModalProps) {
                 <tbody className="divide-y divide-black/5 font-mono">
                   <tr><td className="px-4 py-2.5">Claude</td><td className="px-4 py-2.5 text-black/60">/api/v1/claude</td><td className="px-4 py-2.5 text-black/60">Anthropic</td></tr>
                   <tr><td className="px-4 py-2.5">Yunwu</td><td className="px-4 py-2.5 text-black/60">/api/v1/yunwu</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
-                  <tr><td className="px-4 py-2.5">Clawos</td><td className="px-4 py-2.5 text-black/60">/api/v1/clawos</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
+                  <tr><td className="px-4 py-2.5">Clawos (CN)</td><td className="px-4 py-2.5 text-black/60">/api/v1/clawos</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
+                  <tr><td className="px-4 py-2.5">Clawos (Global)</td><td className="px-4 py-2.5 text-black/60">/api/v1/clawos-overseas</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
                 </tbody>
               </table>
             </div>
