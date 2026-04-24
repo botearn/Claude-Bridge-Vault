@@ -122,6 +122,7 @@ const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output
   tokenutopia:  ANTHROPIC_PRICES,
   palebluedot:  ANTHROPIC_PRICES,
   yunwu:        OPENAI_COMPAT_PRICES,
+  clawos:       OPENAI_COMPAT_PRICES,
 };
 
 function lookupPrice(vendor: string, model: string | undefined): { input: number; output: number } {

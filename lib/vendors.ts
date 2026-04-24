@@ -33,6 +33,16 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
     keyPrefix: 'palebluedot',
     basePath: '/api/v1/palebluedot',
   },
+  clawos: {
+    label: 'Clawos',
+    // Domestic prod: https://token-gateway.clawos.metacarbon-inc.com
+    // Overseas prod: https://token-gateway.clawos.agentclawos.com
+    endpoint: 'https://token-gateway.clawos.metacarbon-inc.com/v1/chat/completions',
+    authStyle: 'bearer',
+    envKey: 'CLAWOS_MASTER_KEY',
+    keyPrefix: 'clawos',
+    basePath: '/api/v1/clawos',
+  },
 };
 
 // Available models per vendor (label shown in UI, value sent to upstream API)
@@ -90,8 +100,16 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'DeepSeek Chat', value: 'deepseek-chat', group: 'DeepSeek' },
     { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner', group: 'DeepSeek' },
   ],
+  clawos: [
+    { label: 'Claude Opus 4.6', value: 'claude-opus-4-6', group: 'Claude' },
+    { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6', group: 'Claude' },
+    { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001', group: 'Claude' },
+    { label: 'GPT-4.1', value: 'gpt-4.1', group: 'OpenAI' },
+    { label: 'GPT-4o', value: 'gpt-4o', group: 'OpenAI' },
+    { label: 'GPT-4o mini', value: 'gpt-4o-mini', group: 'OpenAI' },
+  ],
 };
 
 export function isValidVendor(v: unknown): v is VendorId {
-  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia' || v === 'palebluedot';
+  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia' || v === 'palebluedot' || v === 'clawos';
 }

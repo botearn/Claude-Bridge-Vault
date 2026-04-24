@@ -128,7 +128,7 @@ export default function PlaygroundPage() {
 
     try {
       const baseUrl = window.location.origin;
-      const isOpenAI = vendor === 'yunwu';
+      const isOpenAI = vendor === 'yunwu' || vendor === 'clawos';
       const endpoint = `${baseUrl}${VENDOR_CONFIG[vendor].basePath}`;
 
       let body: Record<string, unknown>;
