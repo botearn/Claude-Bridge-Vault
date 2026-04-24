@@ -107,20 +107,50 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner', group: 'DeepSeek' },
   ],
   clawos: [
+    // Claude
+    { label: 'Claude Opus 4.7', value: 'claude-opus-4-7', group: 'Claude' },
     { label: 'Claude Opus 4.6', value: 'claude-opus-4-6', group: 'Claude' },
     { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6', group: 'Claude' },
-    { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001', group: 'Claude' },
-    { label: 'GPT-4.1', value: 'gpt-4.1', group: 'OpenAI' },
-    { label: 'GPT-4o', value: 'gpt-4o', group: 'OpenAI' },
-    { label: 'GPT-4o mini', value: 'gpt-4o-mini', group: 'OpenAI' },
+    // OpenAI
+    { label: 'GPT-5.4', value: 'gpt-5.4', group: 'OpenAI' },
+    { label: 'GPT-5.4 mini', value: 'gpt-5.4-mini', group: 'OpenAI' },
+    // Google
+    { label: 'Gemini 3.1 Pro (preview)', value: 'gemini-3.1-pro-preview', group: 'Google' },
+    { label: 'Gemini 3.1 Flash Lite (preview)', value: 'gemini-3.1-flash-lite-preview', group: 'Google' },
+    // Qwen
+    { label: 'Qwen 3.6 Plus', value: 'qwen3.6-plus', group: 'Qwen' },
+    { label: 'Qwen 3.5 Plus', value: 'qwen3.5-plus', group: 'Qwen' },
+    { label: 'Qwen 3.5 Flash', value: 'qwen3.5-flash', group: 'Qwen' },
+    { label: 'Qwen3 Coder Plus', value: 'qwen3-coder-plus', group: 'Qwen' },
+    // Kimi / MiniMax / GLM / DeepSeek
+    { label: 'Kimi K2.5', value: 'kimi-k2.5', group: 'Moonshot' },
+    { label: 'MiniMax M2.5', value: 'MiniMax-M2.5', group: 'MiniMax' },
+    { label: 'GLM 5.1', value: 'glm-5.1', group: 'Zhipu' },
+    { label: 'GLM 5', value: 'glm-5', group: 'Zhipu' },
+    { label: 'DeepSeek V3.2', value: 'deepseek-v3.2', group: 'DeepSeek' },
   ],
   'clawos-overseas': [
+    // Claude
+    { label: 'Claude Opus 4.7', value: 'claude-opus-4-7', group: 'Claude' },
     { label: 'Claude Opus 4.6', value: 'claude-opus-4-6', group: 'Claude' },
     { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6', group: 'Claude' },
-    { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001', group: 'Claude' },
-    { label: 'GPT-4.1', value: 'gpt-4.1', group: 'OpenAI' },
-    { label: 'GPT-4o', value: 'gpt-4o', group: 'OpenAI' },
-    { label: 'GPT-4o mini', value: 'gpt-4o-mini', group: 'OpenAI' },
+    // OpenAI
+    { label: 'GPT-5.4', value: 'gpt-5.4', group: 'OpenAI' },
+    { label: 'GPT-5.4 mini', value: 'gpt-5.4-mini', group: 'OpenAI' },
+    // Google
+    { label: 'Gemini 3.1 Pro (preview)', value: 'gemini-3.1-pro-preview', group: 'Google' },
+    { label: 'Gemini 3.1 Flash Lite (preview)', value: 'gemini-3.1-flash-lite-preview', group: 'Google' },
+    // Qwen
+    { label: 'Qwen 3.6 Plus', value: 'qwen3.6-plus', group: 'Qwen' },
+    { label: 'Qwen 3.5 Plus', value: 'qwen3.5-plus', group: 'Qwen' },
+    { label: 'Qwen 3.5 Flash', value: 'qwen3.5-flash', group: 'Qwen' },
+    { label: 'Qwen3 Coder Plus', value: 'qwen3-coder-plus', group: 'Qwen' },
+    // Kimi / MiniMax / GLM / DeepSeek
+    { label: 'Kimi K2.5', value: 'kimi-k2.5', group: 'Moonshot' },
+    { label: 'MiniMax M2.5', value: 'MiniMax-M2.5', group: 'MiniMax' },
+    { label: 'GLM 5.1', value: 'glm-5.1', group: 'Zhipu' },
+    { label: 'GLM 5', value: 'glm-5', group: 'Zhipu' },
+    { label: 'DeepSeek V3.2', value: 'deepseek-v3.2', group: 'DeepSeek' },
   ],
 };
 

@@ -43,7 +43,8 @@ export function extractTokenUsage(vendor: VendorId, data: UsageLike): TokenUsage
 // - Yunwu: OpenAI official pricing — TODO: update to Yunwu's actual reseller pricing when available
 
 export const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
-  // Opus 4.6 / 4
+  // Opus 4.7 / 4.6 / 4
+  'claude-opus-4-7':           { input: 15.0,  output: 75.0  },
   'claude-opus-4-6':           { input: 15.0,  output: 75.0  },
   'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
   'claude-3-opus-latest':      { input: 15.0,  output: 75.0  },
@@ -107,7 +108,8 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
   // DeepSeek
   'deepseek-chat':       { input: 0.27,  output: 1.10  },
   'deepseek-reasoner':   { input: 0.55,  output: 2.19  },
-  // Claude via Yunwu (same Anthropic pricing)
+  // Claude via OpenAI-compat gateways (same Anthropic pricing)
+  'claude-opus-4-7':           { input: 15.0,  output: 75.0  },
   'claude-opus-4-6':           { input: 15.0,  output: 75.0  },
   'claude-sonnet-4-6':         { input: 3.0,   output: 15.0  },
   'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.0   },

@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     const probeModel =
       ch.vendor === 'palebluedot' ? 'anthropic/claude-haiku-4.5' :
       ch.vendor === 'yunwu'       ? 'gpt-4o-mini' :
-      ch.vendor === 'clawos'      ? 'gpt-4o-mini' :
-      ch.vendor === 'clawos-overseas' ? 'gpt-4o-mini' :
+      ch.vendor === 'clawos'      ? 'qwen3.5-flash' :
+      ch.vendor === 'clawos-overseas' ? 'qwen3.5-flash' :
       'claude-haiku-4-5-20251001';
     const probeBody = JSON.stringify({
       model: probeModel,
