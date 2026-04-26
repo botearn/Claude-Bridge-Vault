@@ -50,6 +50,7 @@ export function ShareSnippet({ subKey, vendor }: ShareSnippetProps) {
     yunwu: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`,
     clawos: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
     'clawos-overseas': `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
+    amazon: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"us.anthropic.claude-sonnet-4-20250514-v1:0","messages":[{"role":"user","content":"Hello"}]}'`,
   };
   const snippet = snippets[vendor] ?? snippets.claude;
 

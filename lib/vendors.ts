@@ -49,6 +49,16 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
     keyPrefix: 'clawos-overseas',
     basePath: '/api/v1/clawos-overseas',
   },
+  amazon: {
+    label: 'Amazon Bedrock',
+    // Bedrock OpenAI-compat endpoint. Default region us-east-1; change if your
+    // API key is provisioned elsewhere (e.g. us-west-2).
+    endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/chat/completions',
+    authStyle: 'bearer',
+    envKey: 'AMAZON_MASTER_KEY',
+    keyPrefix: 'amazon',
+    basePath: '/api/v1/amazon',
+  },
 };
 
 // Available models per vendor (label shown in UI, value sent to upstream API)
@@ -152,8 +162,21 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'GLM 5', value: 'glm-5', group: 'Zhipu' },
     { label: 'DeepSeek V3.2', value: 'deepseek-v3.2', group: 'DeepSeek' },
   ],
+  amazon: [
+    // Anthropic on Bedrock (us. = cross-region inference profile)
+    { label: 'Claude Opus 4.1', value: 'us.anthropic.claude-opus-4-1-20250805-v1:0', group: 'Claude' },
+    { label: 'Claude Opus 4', value: 'us.anthropic.claude-opus-4-20250514-v1:0', group: 'Claude' },
+    { label: 'Claude Sonnet 4', value: 'us.anthropic.claude-sonnet-4-20250514-v1:0', group: 'Claude' },
+    { label: 'Claude 3.7 Sonnet', value: 'us.anthropic.claude-3-7-sonnet-20250219-v1:0', group: 'Claude' },
+    { label: 'Claude 3.5 Sonnet v2', value: 'anthropic.claude-3-5-sonnet-20241022-v2:0', group: 'Claude' },
+    { label: 'Claude 3.5 Haiku', value: 'anthropic.claude-3-5-haiku-20241022-v1:0', group: 'Claude' },
+    // Amazon Nova
+    { label: 'Nova Pro', value: 'amazon.nova-pro-v1:0', group: 'Amazon Nova' },
+    { label: 'Nova Lite', value: 'amazon.nova-lite-v1:0', group: 'Amazon Nova' },
+    { label: 'Nova Micro', value: 'amazon.nova-micro-v1:0', group: 'Amazon Nova' },
+  ],
 };
 
 export function isValidVendor(v: unknown): v is VendorId {
-  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia' || v === 'palebluedot' || v === 'clawos' || v === 'clawos-overseas';
+  return v === 'claude' || v === 'yunwu' || v === 'tokenutopia' || v === 'palebluedot' || v === 'clawos' || v === 'clawos-overseas' || v === 'amazon';
 }

@@ -26,7 +26,7 @@ interface Channel {
   health: ChannelHealth;
 }
 
-const VENDORS: VendorId[] = ['claude', 'yunwu', 'tokenutopia', 'palebluedot', 'clawos', 'clawos-overseas'];
+const VENDORS: VendorId[] = ['claude', 'yunwu', 'tokenutopia', 'palebluedot', 'clawos', 'clawos-overseas', 'amazon'];
 
 interface HealthBadgeProps {
   health: ChannelHealth;

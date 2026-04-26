@@ -115,6 +115,17 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
   'claude-haiku-4-5-20251001': { input: 0.80,  output: 4.0   },
   'claude-sonnet-4-20250514':  { input: 3.0,   output: 15.0  },
   'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
+  // Amazon Bedrock — Claude (cross-region inference profile + native IDs)
+  'us.anthropic.claude-opus-4-1':       { input: 15.0,  output: 75.0  },
+  'us.anthropic.claude-opus-4':         { input: 15.0,  output: 75.0  },
+  'us.anthropic.claude-sonnet-4':       { input: 3.0,   output: 15.0  },
+  'us.anthropic.claude-3-7-sonnet':     { input: 3.0,   output: 15.0  },
+  'anthropic.claude-3-5-sonnet':        { input: 3.0,   output: 15.0  },
+  'anthropic.claude-3-5-haiku':         { input: 0.80,  output: 4.0   },
+  // Amazon Nova
+  'amazon.nova-pro':                    { input: 0.80,  output: 3.20  },
+  'amazon.nova-lite':                   { input: 0.06,  output: 0.24  },
+  'amazon.nova-micro':                  { input: 0.035, output: 0.14  },
   __default__:           { input: 2.50,  output: 10.0  },
 };
 
@@ -126,6 +137,7 @@ const VENDOR_PRICE_TABLES: Record<string, Record<string, { input: number; output
   yunwu:             OPENAI_COMPAT_PRICES,
   clawos:            OPENAI_COMPAT_PRICES,
   'clawos-overseas': OPENAI_COMPAT_PRICES,
+  amazon:            OPENAI_COMPAT_PRICES,
 };
 
 function lookupPrice(vendor: string, model: string | undefined): { input: number; output: number } {
