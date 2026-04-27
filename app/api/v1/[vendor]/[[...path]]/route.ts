@@ -337,7 +337,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
         break;
       }
 
-      const retryable = res.status === 401 || res.status === 429 || res.status >= 500;
+      const retryable =
+        res.status === 401 ||
+        res.status === 429 ||
+        res.status >= 500 ||
+        (vendor === 'amazon' && (res.status === 403 || res.status === 404));
       const errorDesc = `HTTP ${res.status}`;
 
       // Record failure — may open circuit breaker
