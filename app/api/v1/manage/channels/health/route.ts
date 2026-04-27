@@ -6,8 +6,9 @@ import {
   recordChannelSuccess,
   recordChannelFailure,
 } from '@/lib/channels';
+import { buildBedrockConverseRequest } from '@/lib/bedrock';
 import { buildUpstreamRequest } from '@/lib/proxy';
-import { isValidVendor } from '@/lib/vendors';
+import { isValidVendor, VENDOR_CONFIG } from '@/lib/vendors';
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -65,8 +66,11 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: 'hi' }],
     });
 
-    const upstream = buildUpstreamRequest(ch.vendor, ch.apiKey, probeBody);
     try {
+      const upstream = ch.vendor === 'amazon'
+        ? buildBedrockConverseRequest(ch.apiKey, probeBody, VENDOR_CONFIG.amazon.baseUrl)
+        : buildUpstreamRequest(ch.vendor, ch.apiKey, probeBody);
+
       const res = await fetch(upstream.url, {
         method: 'POST',
         headers: upstream.headers,

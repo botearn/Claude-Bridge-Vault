@@ -57,8 +57,8 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   amazon: {
     label: 'Amazon Bedrock',
-    baseUrl: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai',
-    endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/chat/completions',
+    baseUrl: 'https://bedrock-runtime.us-east-1.amazonaws.com',
+    endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com/model',
     authStyle: 'bearer',
     envKey: 'AMAZON_MASTER_KEY',
     keyPrefix: 'amazon',

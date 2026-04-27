@@ -12,6 +12,7 @@ import { getChannelsForProxy, recordChannelSuccess, recordChannelFailure } from 
 import { checkRpmLimit, checkTpmLimit, getTpmUsage } from '@/lib/key-ratelimit';
 import { writeUsageLog } from '@/lib/usage-log';
 import { applySubKeyDelta } from '@/lib/subkey-mutate';
+import { bedrockConverseToOpenAI, buildBedrockConverseRequest, openAICompletionToSSE } from '@/lib/bedrock';
 import type { VendorId } from '@/lib/types';
 
 type RouteContext = {
@@ -292,16 +293,41 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
-      const upstream = buildUpstreamRequest(vendor, ch.apiKey, rawBody, incomingPath || undefined);
       if (i === 0) {
         console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} model=${model ?? '?'} stream=${streaming} channel=${ch.id ?? 'env'}${ch.isProbe ? ' (probe)' : ''}`);
       }
 
-      const res = await fetch(upstream.url, {
-        method: 'POST',
-        headers: upstream.headers,
-        body: upstream.body,
-      });
+      let res: Response;
+      if (vendor === 'amazon') {
+        try {
+          const upstream = buildBedrockConverseRequest(ch.apiKey, rawBody, VENDOR_CONFIG.amazon.baseUrl);
+          const bedrockRes = await fetch(upstream.url, {
+            method: 'POST',
+            headers: upstream.headers,
+            body: upstream.body,
+          });
+
+          if (bedrockRes.ok) {
+            const bedrockData = await bedrockRes.json() as Record<string, unknown>;
+            const openAIData = bedrockConverseToOpenAI(bedrockData, upstream.model);
+            res = upstream.streamRequested
+              ? openAICompletionToSSE(openAIData)
+              : NextResponse.json(openAIData);
+          } else {
+            res = bedrockRes;
+          }
+        } catch (error) {
+          console.error(`[proxy] ${vendor} failed to build Converse request`, error);
+          return NextResponse.json({ error: 'Invalid Bedrock request' }, { status: 400 });
+        }
+      } else {
+        const upstream = buildUpstreamRequest(vendor, ch.apiKey, rawBody, incomingPath || undefined);
+        res = await fetch(upstream.url, {
+          method: 'POST',
+          headers: upstream.headers,
+          body: upstream.body,
+        });
+      }
 
       if (res.ok) {
         response = res;
