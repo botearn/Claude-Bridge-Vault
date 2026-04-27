@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!targetUserId) {
-    targetUserId = session.userId;
+    return NextResponse.json({ error: 'Missing email or userId' }, { status: 400 });
   }
 
   if (amountUsd <= 0) {
