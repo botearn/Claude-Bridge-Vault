@@ -49,16 +49,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Idempotency: skip if already processed
+    // Idempotency: atomic SET NX so concurrent retries can't both pass the check
     const idempKey = `vault:stripe:processed:${session.id}`;
-    const alreadyDone = await redis.get(idempKey);
-    if (alreadyDone) {
+    const claimed = await redis.set(idempKey, '1', { nx: true, ex: 90 * 24 * 3600 });
+    if (!claimed) {
       console.log(`[stripe] Duplicate webhook for session ${session.id}, skipping`);
       return NextResponse.json({ ok: true });
     }
 
     const newBalance = await addBalance(userId, amount);
-    await redis.set(idempKey, '1', { ex: 90 * 24 * 3600 }); // 90-day idempotency window
 
     // Write top-up log
     const log = {
