@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { getEvents } from '@/lib/events';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 import type { SubKeyData } from '@/lib/types';
 
 function parseSafe(v: unknown): SubKeyData | null {
@@ -12,6 +13,11 @@ function parseSafe(v: unknown): SubKeyData | null {
 }
 
 export async function GET(req: NextRequest) {
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const session = token ? await verifySessionToken(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const isAdmin = session.role === 'admin';
+
   const group = req.nextUrl.searchParams.get('group') ?? 'botearn';
   const eventLimit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '100', 10), 500);
 
@@ -20,11 +26,12 @@ export async function GET(req: NextRequest) {
     getEvents(eventLimit),
   ]);
 
-  // Filter keys by group
+  // Filter keys by group, then by ownership (non-admins only see their own)
   const keys: (SubKeyData & { key: string })[] = [];
   for (const [k, v] of Object.entries(rawKeys ?? {})) {
     const d = parseSafe(v);
     if (!d || d.group !== group) continue;
+    if (!isAdmin && d.userId !== session.userId) continue;
     keys.push({ ...d, key: k });
   }
 
@@ -66,8 +73,13 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => (b.lastUsed ?? '').localeCompare(a.lastUsed ?? ''));
 
-  // Filter events by group
-  const groupEvents = events.filter((e) => e.group === group);
+  // Filter events by group, and by ownership for non-admins (event.subKey is last 8 chars)
+  const ownedSuffixes = isAdmin ? null : new Set(keys.map((k) => k.key.slice(-8)));
+  const groupEvents = events.filter((e) => {
+    if (e.group !== group) return false;
+    if (ownedSuffixes && !ownedSuffixes.has(e.subKey)) return false;
+    return true;
+  });
 
   return NextResponse.json({
     group,
