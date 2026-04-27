@@ -3,6 +3,7 @@ import type { VendorId, VendorConfig } from './types';
 export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   claude: {
     label: 'Claude',
+    baseUrl: 'https://api.anthropic.com',
     endpoint: 'https://api.anthropic.com/v1/messages',
     authStyle: 'x-api-key',
     envKey: 'CLAUDE_MASTER_KEY',
@@ -11,6 +12,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   yunwu: {
     label: 'Yunwu',
+    baseUrl: 'https://yunwu.ai',
     endpoint: 'https://yunwu.ai/v1/chat/completions',
     authStyle: 'bearer',
     envKey: 'YUNWU_MASTER_KEY',
@@ -19,6 +21,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   tokenutopia: {
     label: 'TokenUtopia',
+    baseUrl: 'https://tokenutopia.ai',
     endpoint: 'https://tokenutopia.ai/v1/messages',
     authStyle: 'x-api-key',
     envKey: 'TOKENUTOPIA_MASTER_KEY',
@@ -27,6 +30,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   palebluedot: {
     label: 'PaleBlueDot',
+    baseUrl: 'https://open.palebluedot.ai',
     endpoint: 'https://open.palebluedot.ai/v1/messages',
     authStyle: 'x-api-key',
     envKey: 'PALEBLUEDOT_MASTER_KEY',
@@ -35,6 +39,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   clawos: {
     label: 'Clawos (CN)',
+    baseUrl: 'https://token-gateway.clawos.metacarbon-inc.com',
     endpoint: 'https://token-gateway.clawos.metacarbon-inc.com/v1/chat/completions',
     authStyle: 'bearer',
     envKey: 'CLAWOS_MASTER_KEY',
@@ -43,6 +48,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   'clawos-overseas': {
     label: 'Clawos (Global)',
+    baseUrl: 'https://token-gateway.clawos.agentclawos.com',
     endpoint: 'https://token-gateway.clawos.agentclawos.com/v1/chat/completions',
     authStyle: 'bearer',
     envKey: 'CLAWOS_OVERSEAS_MASTER_KEY',
@@ -51,8 +57,7 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
   },
   amazon: {
     label: 'Amazon Bedrock',
-    // Bedrock OpenAI-compat endpoint. Default region us-east-1; change if your
-    // API key is provisioned elsewhere (e.g. us-west-2).
+    baseUrl: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai',
     endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/chat/completions',
     authStyle: 'bearer',
     envKey: 'AMAZON_MASTER_KEY',

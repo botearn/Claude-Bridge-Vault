@@ -14,6 +14,7 @@ export type KeyScope = 'internal' | 'external';
 
 export interface VendorConfig {
   label: string;
+  baseUrl: string;
   endpoint: string;
   authStyle: AuthStyle;
   envKey: string;

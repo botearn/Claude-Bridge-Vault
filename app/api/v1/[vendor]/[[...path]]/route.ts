@@ -69,7 +69,7 @@ function getSubKey(req: NextRequest): string | null {
 // Parse SSE stream to extract token usage (supports Anthropic and OpenAI-compatible formats)
 async function extractTokensFromSSE(
   stream: ReadableStream,
-  vendor: string,
+  isAnthropicFormat: boolean,
 ): Promise<{ inputTokens: number; outputTokens: number; realModel?: string }> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -93,8 +93,7 @@ async function extractTokensFromSSE(
             realModel = evt.model;
           }
 
-          const isAnthropicStyle = VENDOR_CONFIG[vendor as VendorId]?.authStyle === 'x-api-key';
-          if (isAnthropicStyle) {
+          if (isAnthropicFormat) {
             // Anthropic SSE: message_start has input, message_delta has output
             if (evt.type === 'message_start') {
               const msg = evt.message as Record<string, unknown> | undefined;
@@ -123,7 +122,8 @@ async function extractTokensFromSSE(
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  const { vendor } = await context.params;
+  const { vendor, path: pathSegments } = await context.params;
+  const incomingPath = pathSegments?.join('/') ?? '';
 
   if (!isValidVendor(vendor)) {
     return NextResponse.json({ error: 'Unknown vendor' }, { status: 404 });
@@ -249,8 +249,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       } catch { /* keep original body */ }
     }
 
-    // Inject stream_options for OpenAI-compatible vendors so usage is included in final SSE chunk
-    if (streaming && VENDOR_CONFIG[vendor].authStyle === 'bearer') {
+    // Determine actual format from incoming path (auto-routing)
+    const isAnthropicFormat = incomingPath === 'v1/messages' ||
+      (incomingPath === '' && VENDOR_CONFIG[vendor].authStyle === 'x-api-key');
+
+    // Inject stream_options for OpenAI-compatible requests so usage is included in final SSE chunk
+    if (streaming && !isAnthropicFormat) {
       try {
         const parsed = JSON.parse(rawBody);
         if (!parsed.stream_options?.include_usage) {
@@ -268,7 +272,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
-      const upstream = buildUpstreamRequest(vendor, ch.apiKey, rawBody);
+      const upstream = buildUpstreamRequest(vendor, ch.apiKey, rawBody, incomingPath || undefined);
       if (i === 0) {
         console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} model=${model ?? '?'} stream=${streaming} channel=${ch.id ?? 'env'}${ch.isProbe ? ' (probe)' : ''}`);
       }
@@ -323,7 +327,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (streaming && response.body) {
       const [clientStream, parseStream] = response.body.tee();
 
-      void extractTokensFromSSE(parseStream, vendor).then(async ({ inputTokens, outputTokens, realModel }) => {
+      void extractTokensFromSSE(parseStream, isAnthropicFormat).then(async ({ inputTokens, outputTokens, realModel }) => {
         if (inputTokens === 0 && outputTokens === 0) return;
         const effectiveModel = realModel ?? model;
         const costInc = estimateVendorCostUsd(vendor, effectiveModel, { inputTokens, outputTokens });
