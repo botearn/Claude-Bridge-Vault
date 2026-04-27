@@ -21,7 +21,7 @@ interface CreateKeyModalProps {
 export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyModalProps) {
   const [vendor, setVendor] = useState<VendorId>(initialVendor ?? VENDOR_OPTIONS[0].id);
   const vendorModels = VENDOR_MODELS[vendor] ?? [];
-  const [model, setModel] = useState(vendorModels[0]?.value ?? '');
+  const [model, setModel] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -30,8 +30,7 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
 
   // Reset model when vendor changes
   useEffect(() => {
-    const models = VENDOR_MODELS[vendor] ?? [];
-    setModel(models[0]?.value ?? '');
+    setModel('');
   }, [vendor]);
 
   useEffect(() => {
@@ -48,7 +47,7 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
   }, {});
 
   const handleSubmit = async () => {
-    if (!name.trim() || !model) return;
+    if (!name.trim()) return;
     setLoading(true);
     setError('');
     try {
@@ -60,7 +59,7 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
           vendor,
           group: 'my-keys',
           scope: 'external',
-          model,
+          ...(model ? { model } : {}),
         }),
       });
       const data = await res.json();
@@ -138,13 +137,14 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
             {/* Model */}
             <div>
               <label className="text-[10px] font-semibold text-black/40 uppercase tracking-widest block mb-2">
-                Model <span className="text-red-400">*</span>
+                Model
               </label>
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 className="w-full border border-black/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-black/40 bg-white"
               >
+                <option value="">— Any model (no binding) —</option>
                 {Object.entries(grouped).map(([groupName, groupModels]) => (
                   <optgroup key={groupName} label={groupName}>
                     {groupModels.map((m) => (
@@ -156,7 +156,7 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
                 ))}
               </select>
               <p className="text-[10px] text-black/35 mt-1.5">
-                This key will only work with the selected model.
+                {model ? 'This key will only work with the selected model.' : 'Key can be used with any model.'}
               </p>
             </div>
 
@@ -179,7 +179,7 @@ export function CreateKeyModal({ onClose, onCreated, initialVendor }: CreateKeyM
 
             <button
               onClick={handleSubmit}
-              disabled={loading || !name.trim() || !model}
+              disabled={loading || !name.trim()}
               className="w-full py-3 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/80 transition-colors disabled:opacity-40"
             >
               {loading ? 'Creating...' : 'Create Key'}
