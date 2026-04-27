@@ -64,11 +64,19 @@ export async function GET(req: NextRequest, context: RouteContext) {
   }
 
   try {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const session = token ? await verifySessionToken(token) : null;
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const rawValue = await redis.hget('vault:subkeys', subKey);
     const keyData = parseKeyRecord(rawValue as string | Record<string, unknown> | null);
 
     if (!keyData) {
       return NextResponse.json({ error: 'Key not found' }, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && keyData.userId !== session.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const config = VENDOR_CONFIG[keyData.vendor];
