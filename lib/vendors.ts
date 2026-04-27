@@ -169,16 +169,12 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
   ],
   amazon: [
     // Anthropic on Bedrock (us. = cross-region inference profile)
-    { label: 'Claude Opus 4.1', value: 'us.anthropic.claude-opus-4-1-20250805-v1:0', group: 'Claude' },
-    { label: 'Claude Opus 4', value: 'us.anthropic.claude-opus-4-20250514-v1:0', group: 'Claude' },
-    { label: 'Claude Sonnet 4', value: 'us.anthropic.claude-sonnet-4-20250514-v1:0', group: 'Claude' },
-    { label: 'Claude 3.7 Sonnet', value: 'us.anthropic.claude-3-7-sonnet-20250219-v1:0', group: 'Claude' },
-    { label: 'Claude 3.5 Sonnet v2', value: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0', group: 'Claude' },
-    { label: 'Claude 3.5 Haiku', value: 'us.anthropic.claude-3-5-haiku-20241022-v1:0', group: 'Claude' },
-    // Amazon Nova
-    { label: 'Nova Pro', value: 'amazon.nova-pro-v1:0', group: 'Amazon Nova' },
-    { label: 'Nova Lite', value: 'amazon.nova-lite-v1:0', group: 'Amazon Nova' },
-    { label: 'Nova Micro', value: 'amazon.nova-micro-v1:0', group: 'Amazon Nova' },
+    { label: 'Claude Sonnet 4.6', value: 'us.anthropic.claude-sonnet-4-6', group: 'Claude' },
+    { label: 'Claude Opus 4.7', value: 'us.anthropic.claude-opus-4-7', group: 'Claude' },
+    { label: 'Claude Opus 4.6', value: 'us.anthropic.claude-opus-4-6-v1', group: 'Claude' },
+    { label: 'Claude Opus 4.5', value: 'us.anthropic.claude-opus-4-5-20251101-v1:0', group: 'Claude' },
+    { label: 'Claude Sonnet 4.5', value: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0', group: 'Claude' },
+    { label: 'Claude Haiku 4.5', value: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', group: 'Claude' },
   ],
 };
 

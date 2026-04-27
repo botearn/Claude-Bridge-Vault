@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       ch.vendor === 'yunwu'       ? 'gpt-4o-mini' :
       ch.vendor === 'clawos'      ? 'qwen3.5-flash' :
       ch.vendor === 'clawos-overseas' ? 'qwen3.5-flash' :
-      ch.vendor === 'amazon'      ? 'anthropic.claude-3-5-haiku-20241022-v1:0' :
+      ch.vendor === 'amazon'      ? 'us.anthropic.claude-haiku-4-5-20251001-v1:0' :
       'claude-haiku-4-5-20251001';
     const probeBody = JSON.stringify({
       model: probeModel,

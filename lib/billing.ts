@@ -116,11 +116,17 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
   'claude-sonnet-4-20250514':  { input: 3.0,   output: 15.0  },
   'claude-opus-4-20250514':    { input: 15.0,  output: 75.0  },
   // Amazon Bedrock — Claude (cross-region inference profile + native IDs)
+  'us.anthropic.claude-opus-4-7':       { input: 15.0,  output: 75.0  },
+  'us.anthropic.claude-opus-4-6':       { input: 15.0,  output: 75.0  },
   'us.anthropic.claude-opus-4-1':       { input: 15.0,  output: 75.0  },
+  'us.anthropic.claude-opus-4-5':       { input: 15.0,  output: 75.0  },
   'us.anthropic.claude-opus-4':         { input: 15.0,  output: 75.0  },
+  'us.anthropic.claude-sonnet-4-6':     { input: 3.0,   output: 15.0  },
+  'us.anthropic.claude-sonnet-4-5':     { input: 3.0,   output: 15.0  },
   'us.anthropic.claude-sonnet-4':       { input: 3.0,   output: 15.0  },
   'us.anthropic.claude-3-7-sonnet':     { input: 3.0,   output: 15.0  },
   'us.anthropic.claude-3-5-sonnet':     { input: 3.0,   output: 15.0  },
+  'us.anthropic.claude-haiku-4-5':      { input: 0.80,  output: 4.0   },
   'us.anthropic.claude-3-5-haiku':      { input: 0.80,  output: 4.0   },
   // Amazon Nova
   'amazon.nova-pro':                    { input: 0.80,  output: 3.20  },

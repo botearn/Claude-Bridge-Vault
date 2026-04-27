@@ -66,6 +66,26 @@ function getSubKey(req: NextRequest): string | null {
   return match?.[1]?.trim() || null;
 }
 
+function normalizeModelForVendor(vendor: VendorId, model: string | undefined): string | undefined {
+  if (!model || vendor !== 'amazon') return model;
+  const amazonAliases: Record<string, string> = {
+    'anthropic.claude-3-5-haiku-20241022-v1:0': 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    'us.anthropic.claude-3-5-haiku-20241022-v1:0': 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    'us.anthropic.claude-sonnet-4-20250514-v1:0': 'us.anthropic.claude-sonnet-4-6',
+  };
+  return amazonAliases[model] ?? model;
+}
+
+function setBodyModel(rawBody: string, model: string): string {
+  try {
+    const parsed = JSON.parse(rawBody);
+    parsed.model = model;
+    return JSON.stringify(parsed);
+  } catch {
+    return rawBody;
+  }
+}
+
 // Parse SSE stream to extract token usage (supports Anthropic and OpenAI-compatible formats)
 async function extractTokensFromSSE(
   stream: ReadableStream,
@@ -229,11 +249,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const keyUserId = (keyData as { userId?: string }).userId;
 
     let rawBody = await req.text();
-    let model = safeModelFromBody(rawBody);
+    let model = normalizeModelForVendor(vendor, safeModelFromBody(rawBody));
+    if (model && model !== safeModelFromBody(rawBody)) {
+      rawBody = setBodyModel(rawBody, model);
+    }
     const streaming = isStreaming(rawBody);
 
     // Enforce key's bound model: if key has a model configured, always use it
-    const keyModel = (keyData as { model?: string }).model;
+    const storedKeyModel = (keyData as { model?: string }).model;
+    const keyModel = normalizeModelForVendor(vendor, storedKeyModel);
     if (keyModel) {
       if (model && model !== keyModel) {
         return NextResponse.json(
@@ -241,12 +265,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
           { status: 403 },
         );
       }
-      try {
-        const parsed = JSON.parse(rawBody);
-        parsed.model = keyModel;
-        rawBody = JSON.stringify(parsed);
-        model = keyModel;
-      } catch { /* keep original body */ }
+      rawBody = setBodyModel(rawBody, keyModel);
+      model = keyModel;
     }
 
     // Determine actual format from incoming path (auto-routing)
