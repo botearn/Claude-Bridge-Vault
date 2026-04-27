@@ -3,8 +3,6 @@ import { stripe } from '@/lib/stripe';
 import { addBalance } from '@/lib/balance';
 import { redis } from '@/lib/redis';
 
-export const config = { api: { bodyParser: false } };
-
 /** POST /api/stripe/webhook — Stripe sends payment events here */
 export async function POST(req: NextRequest) {
   if (!stripe) {
@@ -31,6 +29,13 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+
+    // Skip sessions where payment hasn't been confirmed yet (e.g. async bank transfers)
+    if (session.payment_status !== 'paid') {
+      console.log(`[stripe] Session ${session.id} payment_status=${session.payment_status}, skipping`);
+      return NextResponse.json({ ok: true });
+    }
+
     const { userId, email, amountUsd } = session.metadata ?? {};
 
     if (!userId || !amountUsd) {
