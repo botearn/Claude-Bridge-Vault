@@ -120,8 +120,8 @@ export const OPENAI_COMPAT_PRICES: Record<string, { input: number; output: numbe
   'us.anthropic.claude-opus-4':         { input: 15.0,  output: 75.0  },
   'us.anthropic.claude-sonnet-4':       { input: 3.0,   output: 15.0  },
   'us.anthropic.claude-3-7-sonnet':     { input: 3.0,   output: 15.0  },
-  'anthropic.claude-3-5-sonnet':        { input: 3.0,   output: 15.0  },
-  'anthropic.claude-3-5-haiku':         { input: 0.80,  output: 4.0   },
+  'us.anthropic.claude-3-5-sonnet':     { input: 3.0,   output: 15.0  },
+  'us.anthropic.claude-3-5-haiku':      { input: 0.80,  output: 4.0   },
   // Amazon Nova
   'amazon.nova-pro':                    { input: 0.80,  output: 3.20  },
   'amazon.nova-lite':                   { input: 0.06,  output: 0.24  },

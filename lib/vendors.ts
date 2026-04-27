@@ -168,8 +168,8 @@ export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; gro
     { label: 'Claude Opus 4', value: 'us.anthropic.claude-opus-4-20250514-v1:0', group: 'Claude' },
     { label: 'Claude Sonnet 4', value: 'us.anthropic.claude-sonnet-4-20250514-v1:0', group: 'Claude' },
     { label: 'Claude 3.7 Sonnet', value: 'us.anthropic.claude-3-7-sonnet-20250219-v1:0', group: 'Claude' },
-    { label: 'Claude 3.5 Sonnet v2', value: 'anthropic.claude-3-5-sonnet-20241022-v2:0', group: 'Claude' },
-    { label: 'Claude 3.5 Haiku', value: 'anthropic.claude-3-5-haiku-20241022-v1:0', group: 'Claude' },
+    { label: 'Claude 3.5 Sonnet v2', value: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0', group: 'Claude' },
+    { label: 'Claude 3.5 Haiku', value: 'us.anthropic.claude-3-5-haiku-20241022-v1:0', group: 'Claude' },
     // Amazon Nova
     { label: 'Nova Pro', value: 'amazon.nova-pro-v1:0', group: 'Amazon Nova' },
     { label: 'Nova Lite', value: 'amazon.nova-lite-v1:0', group: 'Amazon Nova' },
