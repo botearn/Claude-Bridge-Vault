@@ -57,6 +57,15 @@ function isStreaming(rawBody: string): boolean {
   }
 }
 
+function getSubKey(req: NextRequest): string | null {
+  const xApiKey = req.headers.get('x-api-key')?.trim();
+  if (xApiKey) return xApiKey;
+
+  const auth = req.headers.get('authorization')?.trim();
+  const match = auth?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
 // Parse SSE stream to extract token usage (supports Anthropic and OpenAI-compatible formats)
 async function extractTokensFromSSE(
   stream: ReadableStream,
@@ -120,17 +129,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Unknown vendor' }, { status: 404 });
   }
 
-  const subKey = req.headers.get('x-api-key');
+  const subKey = getSubKey(req);
+
+  if (!subKey) {
+    return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });
+  }
 
   // Early check: at least one channel/key must exist for this vendor
   const defaultChannels = await resolveChannels(vendor);
   if (defaultChannels.length === 0) {
     console.error(`No master keys configured for vendor ${vendor} (Redis channels or env var)`);
     return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
-  }
-
-  if (!subKey) {
-    return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });
   }
 
   try {

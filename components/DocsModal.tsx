@@ -108,7 +108,7 @@ export function DocsModal({ onClose }: DocsModalProps) {
                 </tbody>
               </table>
             </div>
-            <P>All vendors authenticate via <Code>x-api-key</Code> header with your Sub-Key.</P>
+            <P>Use <Code>x-api-key</Code> with your Sub-Key for all vendors. Bearer-style vendors also accept <Code>Authorization: Bearer {'{subKey}'}</Code>.</P>
           </Section>
 
           <Section title={d.examples}>
@@ -121,7 +121,7 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
             <P>{d.exampleYunwu}</P>
             <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
-  -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
+  -H "Authorization: Bearer sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`}</Block>
 

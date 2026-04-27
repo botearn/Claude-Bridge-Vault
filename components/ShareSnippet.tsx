@@ -35,9 +35,13 @@ export function ShareSnippet({ subKey, vendor }: ShareSnippetProps) {
   const [copiedAll, setCopiedAll] = useState(false);
   const config = VENDOR_CONFIG[vendor];
   const baseUrl = (typeof window !== 'undefined' ? window.location.origin : '') + config.basePath;
+  const isBearer = config.authStyle === 'bearer';
+  const authHeaderName = isBearer ? 'Authorization' : 'x-api-key';
+  const authHeaderValue = isBearer ? `Bearer ${subKey}` : subKey;
+  const authHeaderDisplay = `${authHeaderName}: ${authHeaderValue}`;
 
   const handleCopyAll = () => {
-    const text = `Base URL: ${baseUrl}\nAPI Key: ${subKey}\nAuth Header: ${config.authStyle}`;
+    const text = `Base URL: ${baseUrl}\nAPI Key: ${subKey}\nAuth Header: ${authHeaderName}\nHeader Value: ${authHeaderValue}`;
     navigator.clipboard.writeText(text);
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 2000);
@@ -47,10 +51,10 @@ export function ShareSnippet({ subKey, vendor }: ShareSnippetProps) {
     claude: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`,
     tokenutopia: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"claude-opus-4-6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`,
     palebluedot: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -d '{"model":"anthropic/claude-opus-4.6","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`,
-    yunwu: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`,
-    clawos: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
-    'clawos-overseas': `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
-    amazon: `curl ${baseUrl} \\\n  -H "x-api-key: ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"us.anthropic.claude-sonnet-4-20250514-v1:0","messages":[{"role":"user","content":"Hello"}]}'`,
+    yunwu: `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`,
+    clawos: `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
+    'clawos-overseas': `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"Hello"}]}'`,
+    amazon: `curl ${baseUrl} \\\n  -H "Authorization: Bearer ${subKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"us.anthropic.claude-sonnet-4-20250514-v1:0","messages":[{"role":"user","content":"Hello"}]}'`,
   };
   const snippet = snippets[vendor] ?? snippets.claude;
 
@@ -86,9 +90,9 @@ export function ShareSnippet({ subKey, vendor }: ShareSnippetProps) {
             <div className="text-[10px] font-semibold text-black/40 uppercase tracking-widest mb-1">
               {t.shareSnippet.authHeader}
             </div>
-            <code className="font-mono text-xs text-black">{config.authStyle}</code>
+            <code className="font-mono text-xs text-black">{authHeaderDisplay}</code>
           </div>
-          <CopyButton text={config.authStyle} />
+          <CopyButton text={authHeaderDisplay} />
         </div>
         <div className="text-[10px] text-black/40 mt-1">{t.shareSnippet.copyHint}</div>
       </div>

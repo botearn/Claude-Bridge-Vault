@@ -207,13 +207,13 @@ export default function DocsPage() {
                 headers={[d.vendor, d.path, d.auth, d.format]}
                 rows={[
                   ['Claude', '/api/v1/claude', 'x-api-key', 'Anthropic Messages'],
-                  ['Yunwu', '/api/v1/yunwu', 'x-api-key', 'OpenAI Chat Completions'],
-                  ['Clawos (CN)', '/api/v1/clawos', 'x-api-key', 'OpenAI Chat Completions'],
-                  ['Clawos (Global)', '/api/v1/clawos-overseas', 'x-api-key', 'OpenAI Chat Completions'],
-                  ['Amazon Bedrock', '/api/v1/amazon', 'x-api-key', 'OpenAI Chat Completions'],
+                  ['Yunwu', '/api/v1/yunwu', 'Bearer or x-api-key', 'OpenAI Chat Completions'],
+                  ['Clawos (CN)', '/api/v1/clawos', 'Bearer or x-api-key', 'OpenAI Chat Completions'],
+                  ['Clawos (Global)', '/api/v1/clawos-overseas', 'Bearer or x-api-key', 'OpenAI Chat Completions'],
+                  ['Amazon Bedrock', '/api/v1/amazon', 'Bearer or x-api-key', 'OpenAI Chat Completions'],
                 ]}
               />
-              <P>All vendors authenticate via <code className="px-1.5 py-0.5 bg-[var(--surface-raised)] border border-[var(--border)] rounded-[var(--radius-sm)] font-mono text-[12px]">x-api-key</code> header with your Sub-Key. Token Bank internally converts to the upstream vendor&apos;s auth format (Bearer for Yunwu/OpenAI).</P>
+              <P>All vendors still accept <code className="px-1.5 py-0.5 bg-[var(--surface-raised)] border border-[var(--border)] rounded-[var(--radius-sm)] font-mono text-[12px]">x-api-key</code> with your Sub-Key. Bearer-style vendors also accept <code className="px-1.5 py-0.5 bg-[var(--surface-raised)] border border-[var(--border)] rounded-[var(--radius-sm)] font-mono text-[12px]">Authorization: Bearer {'{subKey}'}</code>. Token Bank internally converts to the upstream vendor&apos;s auth format.</P>
             </Section>
 
             {/* ── 3. Usage Examples ── */}
@@ -231,7 +231,7 @@ export default function DocsPage() {
 
               <P>{d.exampleYunwu}</P>
               <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
-  -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
+  -H "Authorization: Bearer sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "gpt-4o",
@@ -252,7 +252,7 @@ export default function DocsPage() {
 
               <P>{d.exampleYunwuStream}</P>
               <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
-  -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \\
+  -H "Authorization: Bearer sk-vault-yunwu-xxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "gemini-2.5-flash",
@@ -389,7 +389,7 @@ FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
               <Table
                 headers={['Status', 'Error', 'Cause']}
                 rows={[
-                  ['401', 'Missing API Key', 'No x-api-key header'],
+                  ['401', 'Missing API Key', 'No x-api-key or Authorization Bearer header'],
                   ['403', 'Invalid or mismatched key', 'Key not found or vendor mismatch'],
                   ['403', 'Key expired', 'expiresAt is in the past'],
                   ['404', 'Unknown vendor', 'Invalid vendor in URL path'],
