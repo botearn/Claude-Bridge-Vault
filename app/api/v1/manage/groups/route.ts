@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { isValidVendor } from '@/lib/vendors';
+import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 
 interface GroupData {
   label: string;
@@ -19,6 +20,14 @@ const parseGroupRecord = (value: string | Record<string, unknown> | null): Group
   }
   return value as unknown as GroupData;
 };
+
+async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const session = token ? await verifySessionToken(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  return null;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,6 +70,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const payload = await req.json();
     const vendor = typeof payload?.vendor === 'string' ? payload.vendor.trim() : '';
@@ -95,6 +106,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const payload = await req.json();
     const key = typeof payload?.key === 'string' ? payload.key.trim() : '';
@@ -125,6 +138,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
   try {
     const { key } = await req.json();
 
