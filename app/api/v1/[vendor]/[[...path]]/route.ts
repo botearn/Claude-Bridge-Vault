@@ -246,8 +246,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Resolve key owner for post-call billing (negative balance allowed)
+    // Resolve key owner for post-call billing
     const keyUserId = (keyData as { userId?: string }).userId;
+
+    // Pre-flight balance gate: allow a small grace overdraft, then refuse.
+    // Without this, a $0 user could spam premium models on the master key indefinitely.
+    const NEGATIVE_BALANCE_GRACE_USD = 1;
+    if (keyUserId) {
+      const currentBalance = await getBalance(keyUserId);
+      if (currentBalance < -NEGATIVE_BALANCE_GRACE_USD) {
+        return NextResponse.json(
+          { error: 'Insufficient balance', balance: currentBalance },
+          { status: 402 },
+        );
+      }
+    }
 
     let rawBody = await req.text();
     let model = normalizeModelForVendor(vendor, safeModelFromBody(rawBody));
