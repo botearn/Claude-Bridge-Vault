@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
     // Minimal probe: send a tiny message to the vendor (model varies by vendor ID scheme)
     const probeModel =
       ch.vendor === 'palebluedot' ? 'anthropic/claude-haiku-4.5' :
-      ch.vendor === 'yunwu'       ? 'gpt-4o-mini' :
       ch.vendor === 'clawos'      ? 'qwen3.5-flash' :
       ch.vendor === 'clawos-overseas' ? 'qwen3.5-flash' :
       ch.vendor === 'amazon'      ? 'us.anthropic.claude-haiku-4-5-20251001-v1:0' :

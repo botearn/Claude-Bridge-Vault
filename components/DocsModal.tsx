@@ -101,7 +101,6 @@ export function DocsModal({ onClose }: DocsModalProps) {
                 </thead>
                 <tbody className="divide-y divide-black/5 font-mono">
                   <tr><td className="px-4 py-2.5">Claude</td><td className="px-4 py-2.5 text-black/60">/api/v1/claude</td><td className="px-4 py-2.5 text-black/60">Anthropic</td></tr>
-                  <tr><td className="px-4 py-2.5">Yunwu</td><td className="px-4 py-2.5 text-black/60">/api/v1/yunwu</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
                   <tr><td className="px-4 py-2.5">Clawos (CN)</td><td className="px-4 py-2.5 text-black/60">/api/v1/clawos</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
                   <tr><td className="px-4 py-2.5">Clawos (Global)</td><td className="px-4 py-2.5 text-black/60">/api/v1/clawos-overseas</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
                   <tr><td className="px-4 py-2.5">Amazon Bedrock</td><td className="px-4 py-2.5 text-black/60">/api/v1/amazon</td><td className="px-4 py-2.5 text-black/60">OpenAI</td></tr>
@@ -118,12 +117,6 @@ export function DocsModal({ onClose }: DocsModalProps) {
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{"model":"claude-sonnet-4-20250514","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}'`}</Block>
-
-            <P>{d.exampleYunwu}</P>
-            <Block>{`curl https://www.sitesfy.run/api/v1/yunwu \\
-  -H "Authorization: Bearer sk-vault-yunwu-xxxxxxxx" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'`}</Block>
 
           </Section>
 
@@ -234,7 +227,7 @@ export function DocsModal({ onClose }: DocsModalProps) {
 
           <Section title={d.keyFormat}>
             <P>{d.keyFormatDesc}</P>
-            <Block>{`sk-vault-{vendor}-{random8chars}\nsk-vault-claude-a1b2c3d4\nsk-vault-yunwu-z9y8x7w6`}</Block>
+            <Block>{`sk-vault-{vendor}-{random8chars}\nsk-vault-claude-a1b2c3d4\nsk-vault-clawos-z9y8x7w6`}</Block>
           </Section>
 
         </div>

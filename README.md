@@ -28,7 +28,7 @@ Multi-vendor API key management platform. Users register, top up balance, create
 
 ### For Admins
 - All of the above, plus:
-- Filter keys by vendor (Claude / TokenUtopia / Yunwu) and scope (Internal / External)
+- Filter keys by vendor (Claude / TokenUtopia / PaleBlueDot / Clawos / Amazon) and scope (Internal / External)
 - Analytics page: call trends, vendor distribution, key health, latency percentiles
 - Manual balance top-up for any user by email
 - Per-key daily usage breakdown
@@ -58,7 +58,10 @@ Non-admin users only see and can modify their own keys. Enforced server-side on 
 |--------|----------|------------|--------|
 | `claude` | api.anthropic.com | x-api-key | Claude (official) |
 | `tokenutopia` | tokenutopia.ai | x-api-key | Claude (via TokenUtopia) |
-| `yunwu` | yunwu.ai | Bearer | Claude, GPT-4, Gemini, Grok, DeepSeek |
+| `palebluedot` | open.palebluedot.ai | x-api-key | Claude (via PaleBlueDot) |
+| `clawos` | token-gateway.clawos.metacarbon-inc.com | Bearer | Multi-vendor model catalog |
+| `clawos-overseas` | token-gateway.clawos.agentclawos.com | Bearer | Multi-vendor model catalog |
+| `amazon` | bedrock-runtime.us-east-1.amazonaws.com | Bearer | Amazon Bedrock / Anthropic |
 
 Users select a vendor when creating a key, then pick a model from that vendor's catalog.
 
@@ -81,7 +84,7 @@ cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × o
 | Claude Sonnet 4 | $3.00 | $15.00 |
 | Claude Haiku 4.5 | $0.80 | $4.00 |
 
-### Yunwu — OpenAI (USD per 1M tokens)
+### OpenAI-compatible vendors (USD per 1M tokens)
 
 | Model | Input | Output |
 |-------|-------|--------|
@@ -93,7 +96,7 @@ cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × o
 | o3 | $10.00 | $40.00 |
 | o4-mini | $1.10 | $4.40 |
 
-### Yunwu — Google / xAI / DeepSeek (USD per 1M tokens)
+### Additional provider examples (USD per 1M tokens)
 
 | Model | Input | Output |
 |-------|-------|--------|
@@ -137,14 +140,6 @@ curl https://www.sitesfy.run/api/v1/tokenutopia \
   -d '{"model":"claude-opus-4-6","max_tokens":128,"messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-**Yunwu (OpenAI-compatible)**
-```bash
-curl https://www.sitesfy.run/api/v1/yunwu \
-  -H "x-api-key: sk-vault-yunwu-xxxxxxxx" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'
-```
-
 ---
 
 ## Redis Schema
@@ -166,7 +161,7 @@ vault:accounts                   hash  key=acc-{id}, value=AccountRecord JSON (u
 ```ts
 {
   name: string
-  vendor: 'claude' | 'tokenutopia' | 'yunwu'
+  vendor: 'claude' | 'tokenutopia' | 'palebluedot' | 'clawos' | 'clawos-overseas' | 'amazon'
   group: string
   scope: 'internal' | 'external'
   model?: string          // locked model for this key
@@ -195,7 +190,10 @@ UPSTASH_REDIS_REST_TOKEN=
 # Vendor master keys (comma-separated for multiple)
 CLAUDE_MASTER_KEY=
 TOKENUTOPIA_MASTER_KEY=
-YUNWU_MASTER_KEY=
+PALEBLUEDOT_MASTER_KEY=
+CLAWOS_MASTER_KEY=
+CLAWOS_OVERSEAS_MASTER_KEY=
+AMAZON_MASTER_KEY=
 
 # Auth
 JWT_SECRET=

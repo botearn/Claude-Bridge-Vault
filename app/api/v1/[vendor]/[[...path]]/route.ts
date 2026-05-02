@@ -27,11 +27,6 @@ async function resolveChannels(vendor: VendorId, model?: string): Promise<Upstre
   if (redisChannels.length > 0) return redisChannels;
 
   // Env var fallback — no circuit-breaker tracking for these
-  if (vendor === 'yunwu' && model?.startsWith('gemini')) {
-    const geminiKeys = (process.env.YUNWU_MASTER_KEY_GEMINI ?? '')
-      .split(',').map(k => k.trim()).filter(Boolean);
-    if (geminiKeys.length > 0) return geminiKeys.map(k => ({ id: null, apiKey: k, isProbe: false }));
-  }
   return (process.env[VENDOR_CONFIG[vendor].envKey] ?? '')
     .split(',').map(k => k.trim()).filter(Boolean)
     .map(k => ({ id: null, apiKey: k, isProbe: false }));
