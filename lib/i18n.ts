@@ -349,6 +349,7 @@ export const translations = {
     },
     sidebar: {
       dashboard: 'Dashboard',
+      console: 'Console',
       channels: 'Channels',
       pricing: 'Pricing',
       playground: 'Playground',
@@ -839,6 +840,7 @@ export const translations = {
     },
     sidebar: {
       dashboard: 'Dashboard',
+      console: '控制台',
       channels: '渠道',
       pricing: '定价',
       playground: '调试台',

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2, BookOpen, LogOut } from 'lucide-react';
+import { BarChart2, Activity, FileText, Settings, Search, ChevronLeft, ChevronRight, Shield, GitBranch, Tag, ScrollText, Wand2, BookOpen, LogOut, LayoutDashboard } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useLang } from './LangContext';
 
@@ -50,6 +50,7 @@ export function Sidebar() {
 
   const links = [
     { href: '/vault', icon: <Shield size={18} />, label: t.sidebar.dashboard },
+    { href: '/console', icon: <LayoutDashboard size={18} />, label: t.sidebar.console },
     { href: '/analytics', icon: <BarChart2 size={18} />, label: t.dashboard.analytics, admin: true },
     { href: '/monitoring', icon: <Activity size={18} />, label: t.dashboard.monitoring, admin: true },
     { href: '/docs', icon: <FileText size={18} />, label: t.dashboard.docs },

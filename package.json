@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "console:install": "cd console-app && npm install",
+    "console:dev": "cd console-app && npm run dev",
+    "console:build": "cd console-app && npm run build",
+    "console:typecheck": "cd console-app && npm run typecheck"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

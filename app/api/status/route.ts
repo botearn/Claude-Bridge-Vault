@@ -1,0 +1,41 @@
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    data: {
+      status: true,
+      system_name: 'Token Bank Console',
+      logo: '/logo.png',
+      footer_html: 'Token Bank Console',
+      setup_notice: '',
+      version: 'local',
+      self_use_mode_enabled: false,
+      display_in_currency: true,
+      quota_per_unit: 500000,
+      quota_display_type: 'USD',
+      usd_exchange_rate: 1,
+      custom_currency_symbol: '$',
+      custom_currency_exchange_rate: 1,
+      demo_site_enabled: false,
+      display_token_stat_enabled: true,
+      user_agreement_enabled: false,
+      privacy_policy_enabled: false,
+      oauth_register_enabled: false,
+      register_enabled: false,
+      password_register_enabled: false,
+      email_verification: false,
+      github_oauth: false,
+      discord_oauth: false,
+      oidc_enabled: false,
+      linuxdo_oauth: false,
+      telegram_oauth: false,
+      wechat_login: false,
+      passkey_login: false,
+      turnstile_check: false,
+      turnstile_site_key: '',
+      top_up_link: '',
+      chat_link: '',
+    },
+  });
+}
