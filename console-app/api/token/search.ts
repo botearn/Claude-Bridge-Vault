@@ -1,4 +1,4 @@
-import { handleTokenSearch } from './_lib/tokens.js'
+import { handleTokenSearch } from '../_lib/tokens.js'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
