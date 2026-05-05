@@ -10,6 +10,24 @@ export interface ChannelData {
   enabled: boolean;   // admin-controlled on/off
   weight: number;
   createdAt: string;
+  type?: number;
+  baseUrl?: string | null;
+  openaiOrganization?: string | null;
+  testModel?: string | null;
+  models?: string;
+  group?: string;
+  modelMapping?: string | null;
+  statusCodeMapping?: string | null;
+  priority?: number | null;
+  autoBan?: number | null;
+  other?: string;
+  tag?: string | null;
+  setting?: string;
+  paramOverride?: string | null;
+  headerOverride?: string | null;
+  remark?: string;
+  maxInputTokens?: number;
+  settings?: string;
 }
 
 /* ─── Health (written by proxy, separate from config) ─── */
@@ -57,7 +75,13 @@ export async function getChannels(vendor?: VendorId): Promise<ChannelData[]> {
   if (!all) return [];
   return Object.values(all)
     .map(parseConfig)
-    .filter((c): c is ChannelData => c !== null && (!vendor || c.vendor === vendor));
+    .filter((c): c is ChannelData => c !== null && (!vendor || c.vendor === vendor))
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      return a.id.localeCompare(b.id);
+    });
 }
 
 export async function getChannelsWithHealth(vendor?: VendorId): Promise<ChannelWithHealth[]> {
@@ -84,7 +108,7 @@ export async function addChannel(
 export async function updateChannel(
   vendor: VendorId,
   id: string,
-  patch: Partial<Pick<ChannelData, 'label' | 'apiKey' | 'enabled' | 'weight'>>
+  patch: Partial<Omit<ChannelData, 'id' | 'vendor' | 'createdAt'>>
 ): Promise<ChannelData | null> {
   const field = configField(vendor, id);
   const raw = await redis.hget<string>(CONFIG_KEY, field);
