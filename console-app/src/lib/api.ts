@@ -3,6 +3,8 @@ import i18next from 'i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 
+let redirectingToSignIn = false
+
 // ============================================================================
 // Axios Instance Configuration
 // ============================================================================
@@ -78,17 +80,25 @@ api.interceptors.response.use(
       const status = error?.response?.status
 
       if (status === 401) {
-        // Unauthorized: clear auth state and show toast
-        toast.error(i18next.t('Session expired!'))
-        try {
-          useAuthStore.getState().auth.reset()
-        } catch {
-          /* empty */
+        if (shouldHandleAsExpiredSession(error)) {
+          toast.error(i18next.t('Session expired!'))
+          clearCachedAuth()
+          redirectToSignIn()
+        } else {
+          const msg =
+            error?.response?.data?.message ||
+            error?.response?.data?.error ||
+            error?.message ||
+            i18next.t('Unauthorized')
+          toast.error(msg)
         }
       } else {
         // Other errors: show error message from response or default
         const msg =
-          error?.response?.data?.message || error?.message || 'Request error'
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          'Request error'
         toast.error(msg)
       }
     }
@@ -128,6 +138,49 @@ export function getCommonHeaders(): Record<string, string> {
   }
 
   return headers
+}
+
+function clearCachedAuth(): void {
+  try {
+    useAuthStore.getState().auth.reset()
+  } catch {
+    /* empty */
+  }
+}
+
+function hasCachedAuthUser(): boolean {
+  try {
+    return Boolean(useAuthStore.getState().auth.user)
+  } catch {
+    return false
+  }
+}
+
+function isAuthRequest(url?: string): boolean {
+  if (!url) return false
+
+  return [
+    '/api/user/login',
+    '/api/user/login/2fa',
+    '/api/user/register',
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/me',
+  ].some((path) => url.includes(path))
+}
+
+function shouldHandleAsExpiredSession(error: unknown): boolean {
+  const config = (error as { config?: { url?: string } } | undefined)?.config
+  return hasCachedAuthUser() && !isAuthRequest(config?.url)
+}
+
+function redirectToSignIn(): void {
+  if (redirectingToSignIn || typeof window === 'undefined') return
+
+  redirectingToSignIn = true
+  const redirect = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  const params = new URLSearchParams({ redirect })
+  window.location.assign(`/sign-in?${params.toString()}`)
 }
 
 // ============================================================================
