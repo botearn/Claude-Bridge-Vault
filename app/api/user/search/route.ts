@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       }
       return true;
     })
-    .map(mapCompatUser);
+    .map((user, index) => mapCompatUser(user, index));
 
   const page = Math.max(1, p);
   const size = Math.max(1, pageSize);

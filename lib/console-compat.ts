@@ -52,9 +52,9 @@ export function safeTimestamp(input?: string | null, unit: 'ms' | 's' = 'ms') {
   return unit === 's' ? Math.floor(ts / 1000) : ts;
 }
 
-export function mapCompatUser(user: UserData) {
+export function mapCompatUser(user: UserData, index?: number) {
   return {
-    id: Number(user.id) || 1,
+    id: typeof index === 'number' ? index + 1 : 1,
     username: user.email,
     display_name: user.name,
     email: user.email,
@@ -172,7 +172,13 @@ export async function loadCompatUsers() {
   const rawUsers = (await redis.hgetall<Record<string, string>>('vault:users')) ?? {};
   return Object.values(rawUsers)
     .map((value) => parseStoredValue<UserData>(value))
-    .filter((value): value is UserData => value !== null);
+    .filter((value): value is UserData => value !== null)
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      return String(a.id).localeCompare(String(b.id));
+    });
 }
 
 export async function loadCompatTokens() {
@@ -199,6 +205,14 @@ export async function getCompatChannelById(id: number) {
 
   const channels = await loadCompatChannels();
   return channels[index] ? { index, channel: channels[index] } : null;
+}
+
+export async function getCompatUserById(id: number) {
+  const index = id - 1;
+  if (index < 0) return null;
+
+  const users = await loadCompatUsers();
+  return users[index] ? { index, user: users[index] } : null;
 }
 
 export function compatChannelTypeToVendor(type: number): VendorId | null {
