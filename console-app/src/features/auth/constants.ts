@@ -5,11 +5,11 @@ import { z } from 'zod'
 // ============================================================================
 
 export const loginFormSchema = z.object({
-  username: z.string().min(1, 'Please enter your username or email'),
+  username: z.string().min(1, 'Please enter your email'),
   password: z
     .string()
     .min(1, 'Please enter your password')
-    .min(8, 'Password must be at least 8 characters long'),
+    .min(6, 'Password must be at least 6 characters long'),
 })
 
 export const registerFormSchema = z
@@ -21,7 +21,7 @@ export const registerFormSchema = z
     password: z
       .string()
       .min(1, 'Please enter your password')
-      .min(8, 'Password must be at least 8 characters long')
+      .min(6, 'Password must be at least 6 characters long')
       .max(20, 'Password must be at most 20 characters long'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
@@ -44,7 +44,7 @@ export const otpFormSchema = z.object({
 // Validation Constants
 // ============================================================================
 
-export const PASSWORD_MIN_LENGTH = 8
+export const PASSWORD_MIN_LENGTH = 6
 export const PASSWORD_MAX_LENGTH = 20
 export const OTP_LENGTH = 6
 export const BACKUP_CODE_LENGTH = 9 // XXXX-XXXX format
