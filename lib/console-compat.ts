@@ -189,3 +189,61 @@ export async function loadCompatChannels() {
 export function includesLike(value: string | undefined, needle: string) {
   return value?.toLowerCase().includes(needle.toLowerCase()) ?? false;
 }
+
+export async function getCompatTokenById(id: number) {
+  const index = id - 1;
+  if (index < 0) return null;
+
+  const tokens = await loadCompatTokens();
+  return tokens[index] ? { index, token: tokens[index] } : null;
+}
+
+export function compatPayloadToSubKeyRecord(
+  payload: any,
+  userId: string | undefined,
+  existing?: SubKeyData,
+): SubKeyData {
+  const remainQuota = Number(payload?.remain_quota);
+  const quota = payload?.unlimited_quota
+    ? null
+    : Number.isFinite(remainQuota)
+      ? Math.max(0, Math.floor(remainQuota))
+      : existing?.totalQuota ?? null;
+
+  const usedTokens = (existing?.inputTokens || 0) + (existing?.outputTokens || 0);
+  const totalQuota = quota == null ? null : Math.max(usedTokens, quota + usedTokens);
+
+  const expiresAt =
+    Number(payload?.expired_time) > 0
+      ? new Date(Number(payload.expired_time) * 1000).toISOString()
+      : null;
+
+  return {
+    vendor: existing?.vendor ?? 'amazon',
+    scope: existing?.scope ?? 'internal',
+    usage: existing?.usage ?? 0,
+    inputTokens: existing?.inputTokens ?? 0,
+    outputTokens: existing?.outputTokens ?? 0,
+    costUsd: existing?.costUsd ?? 0,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    lastUsed: existing?.lastUsed ?? null,
+    userId: existing?.userId ?? userId,
+    name:
+      typeof payload?.name === 'string' && payload.name.trim()
+        ? payload.name.trim()
+        : existing?.name ?? 'default',
+    group:
+      typeof payload?.group === 'string' && payload.group.trim()
+        ? payload.group.trim()
+        : existing?.group ?? 'default',
+    totalQuota,
+    expiresAt,
+    model:
+      typeof payload?.model === 'string' && payload.model.trim()
+        ? payload.model.trim()
+        : existing?.model,
+    rpmLimit: existing?.rpmLimit ?? null,
+    tpmLimit: existing?.tpmLimit ?? null,
+    budgetUsd: existing?.budgetUsd ?? null,
+  };
+}

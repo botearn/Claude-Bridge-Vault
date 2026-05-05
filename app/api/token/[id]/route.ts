@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  loadCompatTokens,
+  getCompatTokenById,
   mapCompatToken,
   requireCompatSession,
   unauthorized,
 } from '@/lib/console-compat';
-
-function notImplemented() {
-  return NextResponse.json({ success: false, message: 'Not implemented in compatibility mode' }, { status: 501 });
-}
+import { redis } from '@/lib/redis';
 
 export async function GET(
   req: NextRequest,
@@ -20,15 +17,14 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const index = Number(id) - 1;
   const isAdmin = session.role === 'admin';
-  const token = (await loadCompatTokens())[index];
+  const entry = await getCompatTokenById(Number(id));
 
-  if (!token) {
+  if (!entry) {
     return NextResponse.json({ success: false, message: 'Token not found' }, { status: 404 });
   }
 
-  const item = mapCompatToken(token.storedKey, token.key, index, isAdmin, session);
+  const item = mapCompatToken(entry.token.storedKey, entry.token.key, entry.index, isAdmin, session);
   if (!item) {
     return unauthorized();
   }
@@ -44,5 +40,21 @@ export async function DELETE(req: NextRequest) {
   if (!session) {
     return unauthorized();
   }
-  return notImplemented();
+
+  const id = Number(req.nextUrl.pathname.split('/').filter(Boolean).pop());
+  if (!Number.isFinite(id)) {
+    return NextResponse.json({ success: false, message: 'Invalid token id' }, { status: 400 });
+  }
+
+  const entry = await getCompatTokenById(id);
+  if (!entry) {
+    return NextResponse.json({ success: false, message: 'Token not found' }, { status: 404 });
+  }
+
+  if (session.role !== 'admin' && entry.token.key.userId !== session.userId) {
+    return unauthorized();
+  }
+
+  await redis.hdel('vault:subkeys', entry.token.storedKey);
+  return NextResponse.json({ success: true, message: 'OK' });
 }

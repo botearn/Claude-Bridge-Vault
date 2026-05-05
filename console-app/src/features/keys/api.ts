@@ -17,7 +17,7 @@ export async function getApiKeys(
   params: GetApiKeysParams = {}
 ): Promise<GetApiKeysResponse> {
   const { p = 1, size = 10 } = params
-  const res = await api.get(`/api/token/?p=${p}&size=${size}`)
+  const res = await api.get(`/api/token?p=${p}&size=${size}`)
   return res.data
 }
 
@@ -45,7 +45,7 @@ export async function getApiKey(id: number): Promise<ApiResponse<ApiKey>> {
 export async function createApiKey(
   data: ApiKeyFormData
 ): Promise<ApiResponse<ApiKey>> {
-  const res = await api.post('/api/token/', data)
+  const res = await api.post('/api/token', data)
   return res.data
 }
 
@@ -53,13 +53,13 @@ export async function createApiKey(
 export async function updateApiKey(
   data: ApiKeyFormData & { id: number }
 ): Promise<ApiResponse<ApiKey>> {
-  const res = await api.put('/api/token/', data)
+  const res = await api.put('/api/token', data)
   return res.data
 }
 
 // Delete a single API key
 export async function deleteApiKey(id: number): Promise<ApiResponse> {
-  const res = await api.delete(`/api/token/${id}/`)
+  const res = await api.delete(`/api/token/${id}`)
   return res.data
 }
 
@@ -76,7 +76,7 @@ export async function updateApiKeyStatus(
   id: number,
   status: number
 ): Promise<ApiResponse<ApiKey>> {
-  const res = await api.put('/api/token/?status_only=true', { id, status })
+  const res = await api.put('/api/token?status_only=true', { id, status })
   return res.data
 }
 
