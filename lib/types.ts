@@ -46,3 +46,38 @@ export interface SubKeyRecord extends SubKeyData {
   key: string;
   baseUrl: string;
 }
+
+export interface CompatVendorData {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  status: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompatModelData {
+  id: string;
+  modelName: string;
+  description?: string;
+  icon?: string;
+  tags?: string;
+  vendorKey?: string | null;
+  endpoints?: string;
+  status: number;
+  syncOfficial: number;
+  nameRule: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrefillGroupData {
+  id: string;
+  name: string;
+  type: 'model' | 'tag' | 'endpoint';
+  items: string[];
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
