@@ -7,9 +7,11 @@ import {
   getCompatModelById,
   listCompatModelsMapped,
   loadCompatModels,
+  loadCompatVendors,
   saveCompatModel,
+  seedCompatCatalogFromChannels,
 } from '@/lib/compat-models';
-import { includesLike, requireCompatAdmin, unauthorized } from '@/lib/console-compat';
+import { requireCompatAdmin, unauthorized } from '@/lib/console-compat';
 
 function paginate<T>(items: T[], page: number, pageSize: number) {
   const start = (page - 1) * pageSize;
@@ -25,6 +27,10 @@ export async function GET(req: NextRequest) {
   const pageSize = Number(req.nextUrl.searchParams.get('page_size') ?? '20');
   const status = req.nextUrl.searchParams.get('status')?.trim() ?? '';
   const syncOfficial = req.nextUrl.searchParams.get('sync_official')?.trim() ?? '';
+
+  if ((await loadCompatVendors()).length === 0 && (await loadCompatModels()).length === 0) {
+    await seedCompatCatalogFromChannels();
+  }
 
   const items = (await listCompatModelsMapped()).filter(
     (item) =>

@@ -6,12 +6,17 @@ import {
   loadCompatModels,
   loadCompatVendors,
   saveCompatVendor,
+  seedCompatCatalogFromChannels,
 } from '@/lib/compat-models';
 import { requireCompatAdmin, unauthorized } from '@/lib/console-compat';
 
 export async function GET(req: NextRequest) {
   if (!(await requireCompatAdmin(req))) {
     return unauthorized();
+  }
+
+  if ((await loadCompatVendors()).length === 0) {
+    await seedCompatCatalogFromChannels();
   }
 
   const p = Number(req.nextUrl.searchParams.get('p') ?? '1');

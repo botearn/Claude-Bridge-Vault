@@ -1,6 +1,7 @@
 import { loadCompatChannels, parseStoredValue, safeTimestamp } from '@/lib/console-compat';
 import { redis } from '@/lib/redis';
 import type { CompatModelData, CompatVendorData, PrefillGroupData } from '@/lib/types';
+import { VENDOR_CONFIG, VENDOR_MODELS, isValidVendor } from '@/lib/vendors';
 
 const VENDORS_KEY = 'vault:compat:vendors';
 const MODELS_KEY = 'vault:compat:models';
@@ -316,6 +317,83 @@ export async function getMissingModelNames() {
   const configured = new Set(models.map((model) => model.modelName));
   const used = uniqueStrings(channels.flatMap((channel) => splitCsv(channel.models)));
   return used.filter((name) => !configured.has(name)).sort((a, b) => a.localeCompare(b));
+}
+
+export async function seedCompatCatalogFromChannels() {
+  const [channels, existingVendors, existingModels] = await Promise.all([
+    loadCompatChannels(),
+    loadCompatVendors(),
+    loadCompatModels(),
+  ]);
+
+  const channelVendors = uniqueStrings(
+    channels
+      .map((channel) => channel.vendor)
+      .filter((vendor): vendor is keyof typeof VENDOR_CONFIG => isValidVendor(vendor))
+  );
+
+  const vendorByName = new Map(
+    existingVendors.map((vendor) => [vendor.name.toLowerCase(), vendor])
+  );
+  const existingModelKeys = new Set(
+    existingModels.map((model) => `${model.vendorKey ?? 'none'}::${model.modelName}`)
+  );
+
+  let createdVendors = 0;
+  let createdModels = 0;
+
+  for (const vendorId of channelVendors) {
+    const config = VENDOR_CONFIG[vendorId];
+    let compatVendor = vendorByName.get(config.label.toLowerCase());
+
+    if (!compatVendor) {
+      compatVendor = {
+        id: `vendor_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        name: config.label,
+        description: `Auto-imported from connected ${config.label} channels`,
+        icon: config.label.toLowerCase(),
+        status: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveCompatVendor(compatVendor);
+      vendorByName.set(compatVendor.name.toLowerCase(), compatVendor);
+      createdVendors += 1;
+    }
+
+    const models = VENDOR_MODELS[vendorId] ?? [];
+    for (const model of models) {
+      const dedupeKey = `${compatVendor.id}::${model.value}`;
+      if (existingModelKeys.has(dedupeKey)) {
+        continue;
+      }
+
+      const record: CompatModelData = {
+        id: `model_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        modelName: model.value,
+        description: model.label,
+        icon: compatVendor.icon ?? '',
+        tags: model.group ? `${vendorId},${model.group}` : vendorId,
+        vendorKey: compatVendor.id,
+        endpoints: '',
+        status: 1,
+        syncOfficial: 1,
+        nameRule: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveCompatModel(record);
+      existingModelKeys.add(dedupeKey);
+      createdModels += 1;
+    }
+  }
+
+  return {
+    channelVendors,
+    createdVendors,
+    createdModels,
+  };
 }
 
 export async function saveCompatVendor(record: CompatVendorData) {
