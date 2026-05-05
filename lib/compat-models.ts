@@ -320,17 +320,11 @@ export async function getMissingModelNames() {
 }
 
 export async function seedCompatCatalogFromChannels() {
-  const [channels, existingVendors, existingModels] = await Promise.all([
-    loadCompatChannels(),
+  const [existingVendors, existingModels] = await Promise.all([
     loadCompatVendors(),
     loadCompatModels(),
   ]);
-
-  const channelVendors = uniqueStrings(
-    channels
-      .map((channel) => channel.vendor)
-      .filter((vendor): vendor is keyof typeof VENDOR_CONFIG => isValidVendor(vendor))
-  );
+  const supportedVendors = Object.keys(VENDOR_CONFIG).filter(isValidVendor);
 
   const vendorByName = new Map(
     existingVendors.map((vendor) => [vendor.name.toLowerCase(), vendor])
@@ -342,7 +336,7 @@ export async function seedCompatCatalogFromChannels() {
   let createdVendors = 0;
   let createdModels = 0;
 
-  for (const vendorId of channelVendors) {
+  for (const vendorId of supportedVendors) {
     const config = VENDOR_CONFIG[vendorId];
     let compatVendor = vendorByName.get(config.label.toLowerCase());
 
@@ -390,7 +384,7 @@ export async function seedCompatCatalogFromChannels() {
   }
 
   return {
-    channelVendors,
+    supportedVendors,
     createdVendors,
     createdModels,
   };
