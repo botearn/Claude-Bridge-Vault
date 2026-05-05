@@ -3,7 +3,10 @@
 import { useEffect } from 'react';
 
 const target =
-  process.env.NEXT_PUBLIC_CONSOLE_APP_URL?.trim() || 'http://localhost:3001';
+  process.env.NEXT_PUBLIC_CONSOLE_APP_URL?.trim() ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://console-app-zeta.vercel.app'
+    : 'http://localhost:3001');
 
 export default function ConsoleRedirectPage() {
   useEffect(() => {

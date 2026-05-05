@@ -1,0 +1,23 @@
+{
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "https://www.sitesfy.run/api/:match*"
+    },
+    {
+      "source": "/mj/:match*",
+      "destination": "https://www.sitesfy.run/mj/:match*"
+    },
+    {
+      "source": "/pg/:match*",
+      "destination": "https://www.sitesfy.run/pg/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

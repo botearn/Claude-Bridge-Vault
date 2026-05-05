@@ -62,6 +62,16 @@ function getSubKey(req: NextRequest): string | null {
   return match?.[1]?.trim() || null;
 }
 
+function getSourcePath(req: NextRequest): string | undefined {
+  const referer = req.headers.get('referer');
+  if (!referer) return undefined;
+  try {
+    return new URL(referer).pathname || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeModelForVendor(vendor: VendorId, model: string | undefined): string | undefined {
   if (!model || vendor !== 'amazon') return model;
   const amazonAliases: Record<string, string> = {
@@ -140,6 +150,9 @@ async function extractTokensFromSSE(
 export async function POST(req: NextRequest, context: RouteContext) {
   const { vendor, path: pathSegments } = await context.params;
   const incomingPath = pathSegments?.join('/') ?? '';
+  const sourcePath = getSourcePath(req);
+  const requestPath = req.nextUrl.pathname;
+  const requestStart = Date.now();
 
   if (!isValidVendor(vendor)) {
     return NextResponse.json({ error: 'Unknown vendor' }, { status: 404 });
@@ -162,7 +175,48 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const keyDataStr = await redis.hget('vault:subkeys', subKey);
     const keyData = parseKeyRecord(keyDataStr);
 
+    const keyUserId = (keyData as { userId?: string } | null)?.userId;
+    const kMeta = keyData
+      ? {
+          vendor: (keyData as { vendor: string }).vendor,
+          group: (keyData as { group: string }).group,
+          name: (keyData as { name: string }).name,
+        }
+      : { vendor, group: '', name: '' };
+    let model: string | undefined;
+    let streaming = false;
+
+    const recordUsageLog = (params: {
+      status: 'success' | 'error';
+      model?: string;
+      inputTokens?: number;
+      outputTokens?: number;
+      costUsd?: number;
+      latencyMs?: number;
+      errorCode?: number;
+    }) => {
+      void writeUsageLog({
+        subKey: subKey.slice(-8),
+        userId: keyUserId ?? undefined,
+        vendor,
+        model: params.model ?? model,
+        tokenName: kMeta.name || undefined,
+        group: kMeta.group || undefined,
+        inputTokens: params.inputTokens ?? 0,
+        outputTokens: params.outputTokens ?? 0,
+        costUsd: params.costUsd ?? 0,
+        latencyMs: params.latencyMs ?? (Date.now() - requestStart),
+        stream: streaming,
+        status: params.status,
+        errorCode: params.errorCode,
+        requestPath,
+        sourcePath,
+        timestamp: new Date().toISOString(),
+      });
+    };
+
     if (!keyData || (keyData as { vendor?: string }).vendor !== vendor) {
+      recordUsageLog({ status: 'error', errorCode: 403 });
       return NextResponse.json({ error: 'Invalid or mismatched key' }, { status: 403 });
     }
 
@@ -175,12 +229,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       costUsd?: number;
     };
 
-    const kMeta = { vendor: (keyData as { vendor: string }).vendor, group: (keyData as { group: string }).group, name: (keyData as { name: string }).name };
-
     if (kd.expiresAt && new Date(kd.expiresAt) < new Date()) {
       const ts = new Date().toISOString();
       void logEvent({ type: 'key.expired', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
       notify({ event: 'key.expired', subKey: subKey.slice(-8), ...kMeta, detail: `expired at ${kd.expiresAt}`, timestamp: ts });
+      recordUsageLog({ status: 'error', errorCode: 403 });
       return NextResponse.json({ error: 'Key expired' }, { status: 403 });
     }
 
@@ -188,6 +241,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const rl = await proxyRateLimit.limit(subKey);
     if (!rl.success) {
       const retryAfter = Math.ceil((rl.reset - Date.now()) / 1000);
+      recordUsageLog({ status: 'error', errorCode: 429 });
       return NextResponse.json(
         { error: 'Rate limit exceeded', retryAfter },
         { status: 429, headers: { 'Retry-After': String(retryAfter) } },
@@ -201,6 +255,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const ts = new Date().toISOString();
         void logEvent({ type: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
         notify({ event: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, detail: `${usedTokens}/${kd.totalQuota} tokens`, timestamp: ts });
+        recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json({ error: 'Quota exceeded' }, { status: 429 });
       }
     }
@@ -210,6 +265,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (rpmLimit != null && rpmLimit > 0) {
       const rpm = await checkRpmLimit(subKey, rpmLimit);
       if (!rpm.ok) {
+        recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json(
           { error: 'Key RPM limit exceeded', limit: rpm.limit, current: rpm.count },
           { status: 429, headers: { 'Retry-After': '60' } },
@@ -222,6 +278,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (tpmLimit != null && tpmLimit > 0) {
       const currentTpm = await getTpmUsage(subKey);
       if (currentTpm >= tpmLimit) {
+        recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json(
           { error: 'Key TPM limit exceeded', limit: tpmLimit, current: currentTpm },
           { status: 429, headers: { 'Retry-After': '60' } },
@@ -237,12 +294,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const ts = new Date().toISOString();
         void logEvent({ type: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
         notify({ event: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, detail: `$${spentUsd.toFixed(4)}/$${budgetUsd} USD budget`, timestamp: ts });
+        recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json({ error: 'Key USD budget exceeded' }, { status: 429 });
       }
     }
-
-    // Resolve key owner for post-call billing
-    const keyUserId = (keyData as { userId?: string }).userId;
 
     // Pre-flight balance gate: allow a small grace overdraft, then refuse.
     // Without this, a $0 user could spam premium models on the master key indefinitely.
@@ -250,6 +305,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (keyUserId) {
       const currentBalance = await getBalance(keyUserId);
       if (currentBalance < -NEGATIVE_BALANCE_GRACE_USD) {
+        recordUsageLog({ status: 'error', errorCode: 402 });
         return NextResponse.json(
           { error: 'Insufficient balance', balance: currentBalance },
           { status: 402 },
@@ -258,17 +314,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     let rawBody = await req.text();
-    let model = normalizeModelForVendor(vendor, safeModelFromBody(rawBody));
+    model = normalizeModelForVendor(vendor, safeModelFromBody(rawBody));
     if (model && model !== safeModelFromBody(rawBody)) {
       rawBody = setBodyModel(rawBody, model);
     }
-    const streaming = isStreaming(rawBody);
+    streaming = isStreaming(rawBody);
 
     // Enforce key's bound model: if key has a model configured, always use it
     const storedKeyModel = (keyData as { model?: string }).model;
     const keyModel = normalizeModelForVendor(vendor, storedKeyModel);
     if (keyModel) {
       if (model && model !== keyModel) {
+        recordUsageLog({ status: 'error', errorCode: 403, model });
         return NextResponse.json(
           { error: `This key is bound to model "${keyModel}", cannot use "${model}"` },
           { status: 403 },
@@ -297,7 +354,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const channels = await resolveChannels(vendor, model);
     let response: Response | null = null;
     let usedChannel: UpstreamChannel | null = null;
-    const requestStart = Date.now();
 
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
@@ -326,6 +382,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           }
         } catch (error) {
           console.error(`[proxy] ${vendor} failed to build Converse request`, error);
+          recordUsageLog({ status: 'error', errorCode: 400, model });
           return NextResponse.json({ error: 'Invalid Bedrock request' }, { status: 400 });
         }
       } else {
@@ -365,10 +422,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       // Last channel or non-retryable error
       console.warn(`[proxy] ${vendor} key=${subKey.slice(-8)} all channels failed, last: ${errorDesc}`);
       const errData = await res.json().catch(() => ({ error: 'Upstream error' }));
+      recordUsageLog({ status: 'error', errorCode: res.status, model });
       return NextResponse.json(errData, { status: res.status });
     }
 
     if (!response || !usedChannel) {
+      recordUsageLog({ status: 'error', errorCode: 502, model });
       return NextResponse.json({ error: 'All upstream channels failed' }, { status: 502 });
     }
 
@@ -402,17 +461,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
           void checkTpmLimit(subKey, tpmLimit, inputTokens + outputTokens);
         }
         // Structured usage log
-        void writeUsageLog({
-          subKey: subKey.slice(-8),
-          userId: keyUserId ?? undefined,
-          vendor,
+        recordUsageLog({
+          status: 'success',
           model: effectiveModel ?? undefined,
           inputTokens,
           outputTokens,
           costUsd: costInc,
-          latencyMs: Date.now() - requestStart,
-          status: 'success',
-          timestamp: new Date().toISOString(),
         });
         // Deduct from user balance
         if (keyUserId && costInc > 0) {
@@ -453,17 +507,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       void checkTpmLimit(subKey, tpmLimit, inputInc + outputInc);
     }
     // Structured usage log
-    void writeUsageLog({
-      subKey: subKey.slice(-8),
-      userId: keyUserId ?? undefined,
-      vendor,
+    recordUsageLog({
+      status: 'success',
       model: effectiveModel ?? undefined,
       inputTokens: inputInc,
       outputTokens: outputInc,
       costUsd: costInc,
-      latencyMs: Date.now() - requestStart,
-      status: 'success',
-      timestamp: new Date().toISOString(),
     });
     // Deduct from user balance
     if (keyUserId && costInc > 0) {
@@ -473,6 +522,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error(`[proxy] ${vendor} key=${subKey.slice(-8)} fatal`, error);
+    void writeUsageLog({
+      subKey: subKey.slice(-8),
+      vendor,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      latencyMs: Date.now() - requestStart,
+      status: 'error',
+      errorCode: 500,
+      requestPath,
+      sourcePath,
+      timestamp: new Date().toISOString(),
+    });
     return NextResponse.json({ error: 'Proxy Error' }, { status: 500 });
   }
 }

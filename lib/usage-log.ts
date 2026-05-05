@@ -5,12 +5,17 @@ export interface UsageLogEntry {
   userId?: string;
   vendor: string;
   model?: string;
+  tokenName?: string;
+  group?: string;
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
   latencyMs: number;
+  stream?: boolean;
   status: 'success' | 'error';
   errorCode?: number;
+  requestPath?: string;
+  sourcePath?: string;
   timestamp: string;
 }
 
