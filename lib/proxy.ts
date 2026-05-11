@@ -16,29 +16,29 @@ export function buildUpstreamRequest(
 ): UpstreamRequest {
   const config = VENDOR_CONFIG[vendor];
 
-  // Determine format from incoming path if provided, else fall back to vendor default
-  let isAnthropicFormat: boolean;
-  let url: string;
+  // Pass through explicit upstream paths so OpenAI-compatible image/response
+  // endpoints can coexist with Anthropic-style vendors on the same base URL.
+  const normalizedPath = incomingPath?.replace(/^\/+/, '');
+  const url = normalizedPath ? `${config.baseUrl}/${normalizedPath}` : config.endpoint;
+  const isAnthropicFormat =
+    normalizedPath === 'v1/messages' ||
+    (!normalizedPath && config.endpoint.endsWith('/v1/messages'));
 
-  if (incomingPath === 'v1/messages') {
-    isAnthropicFormat = true;
-    url = `${config.baseUrl}/v1/messages`;
-  } else if (incomingPath === 'v1/chat/completions') {
-    isAnthropicFormat = false;
-    url = `${config.baseUrl}/v1/chat/completions`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (config.authStyle === 'x-api-key') {
+    headers['x-api-key'] = masterKey;
   } else {
-    isAnthropicFormat = config.authStyle === 'x-api-key';
-    url = config.endpoint;
+    headers.Authorization = `Bearer ${masterKey}`;
   }
 
   if (isAnthropicFormat) {
+    headers['anthropic-version'] = '2023-06-01';
     return {
       url,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': masterKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers,
       body: rawBody,
       isAnthropicFormat: true,
     };
@@ -46,10 +46,7 @@ export function buildUpstreamRequest(
 
   return {
     url,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${masterKey}`,
-    },
+    headers,
     body: rawBody,
     isAnthropicFormat: false,
   };
