@@ -61,6 +61,9 @@ export const VENDOR_CONFIG: Record<VendorId, VendorConfig> = {
 // Verified against live APIs on 2026-03-18
 export const VENDOR_MODELS: Record<VendorId, { label: string; value: string; group?: string }[]> = {
   claude: [
+    { label: 'Claude Fable 5', value: 'claude-fable-5' },
+    { label: 'Claude Opus 5', value: 'claude-opus-5' },
+    { label: 'Claude Sonnet 5', value: 'claude-sonnet-5' },
     { label: 'Claude Opus 4.6', value: 'claude-opus-4-6' },
     { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6' },
     { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5-20251001' },

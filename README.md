@@ -1,6 +1,8 @@
 # Claude Bridge Vault
 
-Multi-vendor API key management platform. Users register, top up balance, create API keys (one key = one model), and get billed per call.
+Multi-vendor API key management platform. Legacy users register, top up balance, create
+model-bound API keys, and get billed per call. BotEarn uses a separate multi-model Key,
+pre-authorized AI Balance, and request-level usage contract.
 
 **Live:** [https://www.sitesfy.run](https://www.sitesfy.run)
 
@@ -22,7 +24,7 @@ Multi-vendor API key management platform. Users register, top up balance, create
 - Register / login (JWT session, 30-day cookie)
 - Top up balance via Stripe
 - Create API keys — pick a model, give it a name, done
-- One key = one model (Claude, GPT-4, Gemini, Grok, DeepSeek, etc.)
+- Legacy keys bind to one model (Claude, GPT-4, Gemini, Grok, DeepSeek, etc.)
 - Usage billed per call, deducted from balance
 - See call count, token usage, and estimated cost per key
 
@@ -69,20 +71,26 @@ Users select a vendor when creating a key, then pick a model from that vendor's 
 
 ## Pricing
 
-All usage is billed at **1:1 upstream API official pricing** (no markup). Cost is calculated per request based on actual token consumption:
+Usage is billed at **1:1 upstream API official pricing** (no markup). BotEarn uses
+integer nano-USD amounts and immutable price snapshots; legacy Vault billing uses the
+existing Redis balance. Text cost includes each supported billing dimension:
 
 ```
-cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × outputPrice
+cost = input + cached input + cache write + output
 ```
 
-### Claude / TokenUtopia (USD per 1M tokens)
+### BotEarn current Claude catalog (USD per 1M tokens)
 
 | Model | Input | Output |
 |-------|-------|--------|
-| Claude Opus 4.6 | $15.00 | $75.00 |
-| Claude Sonnet 4.6 | $3.00 | $15.00 |
-| Claude Sonnet 4 | $3.00 | $15.00 |
-| Claude Haiku 4.5 | $0.80 | $4.00 |
+| Claude Fable 5 | $10.00 | $50.00 |
+| Claude Opus 5 | $5.00 | $25.00 |
+| Claude Sonnet 5 | $2.00 | $10.00 |
+| Claude Haiku 4.5 | $1.00 | $5.00 |
+
+Claude Sonnet 5 uses its introductory price through August 31, 2026. A new
+immutable price snapshot and BotEarn billing probe are required before the
+standard `$3/$15` price can be published.
 
 ### OpenAI-compatible vendors (USD per 1M tokens)
 
@@ -107,7 +115,7 @@ cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × o
 | DeepSeek Chat | $0.27 | $1.10 |
 | DeepSeek Reasoner | $0.55 | $2.19 |
 
-### Billing Flow
+### Legacy Billing Flow
 
 1. User tops up balance via Stripe ($5 / $10 / $20 / $50 / $100)
 2. Balance stored in Redis as micro-cents (1 USD = 1,000,000 units) for sub-cent precision ($0.000001 granularity)
@@ -118,9 +126,51 @@ cost = (inputTokens / 1,000,000) × inputPrice + (outputTokens / 1,000,000) × o
 
 ---
 
+## BotEarn AI Balance
+
+BotEarn Keys use `billingMode = "botearn_ai_balance"` and are isolated from legacy
+Vault users:
+
+- One Key may allow multiple exact catalog model IDs.
+- The Key has total and daily nano-USD limits, an expiry, and a monotonic policy version.
+- Redis stores only the SHA-256 hash of the plaintext Key plus its safe prefix and policy.
+- The plaintext Key is generated with cryptographic randomness and returned once.
+- BotEarn owns the monetary ledger. Vault never receives a Supabase service role.
+- Every provider request reserves a proven cost upper bound before forwarding.
+- Authoritative provider usage settles against the same immutable price snapshot.
+- A request with missing usage remains pending for reconciliation; it is never guessed.
+- An actual cost above the reserve charges the user only the reserve. BotEarn records the
+  platform overage and pauses that model policy.
+
+The signed billing callback covers method, path/query, timestamp, request ID, and the
+SHA-256 body digest. Both services reject stale signatures and mismatched replay.
+
+### BotEarn Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/v1/models` | Only current catalog models with a fresh successful real probe |
+| `POST /api/v1/messages` | Native Anthropic messages contract |
+| `POST /api/v1/chat/completions` | OpenAI-compatible chat contract |
+| `POST/PATCH/DELETE /api/v1/botearn/keys` | Signed internal Key policy operations |
+| `GET /api/internal/botearn-model-probe` | Daily real vision/tool/structured-output probe |
+| `GET /api/internal/botearn-reconcile` | Retry uncertain settle/release callbacks |
+
+The current public BotEarn catalog contains only direct provider models with official
+prices and authoritative usage. A model is removed from `/api/v1/models` when its probe
+fails, belongs to an old catalog version, or is older than 36 hours. BotEarn separately
+performs bilingual manual publication; a successful Vault probe alone does not expose a
+model to end users.
+
+Unsupported provider-paid tools, one-hour cache writes, and requests that may cross an
+unmodeled long-context price tier are rejected before reserve and before provider access.
+OpenAI-compatible custom function tools remain supported.
+
+---
+
 ## Proxy Routes
 
-All API calls go through `/api/v1/[vendor]/...`. The proxy:
+Legacy API calls go through `/api/v1/[vendor]/...`. The legacy proxy:
 
 1. Looks up the sub-key in Redis
 2. Checks expiry (`expiresAt`) → 403 if expired
@@ -128,6 +178,10 @@ All API calls go through `/api/v1/[vendor]/...`. The proxy:
 4. Checks model binding → 403 if key is bound to a different model
 5. Forwards request to upstream vendor with the master key
 6. On success: increments usage, records tokens + cost, deducts from owner's balance
+
+BotEarn calls use `/api/v1/messages` or `/api/v1/chat/completions`; they perform model
+probe, Key allowlist, expiry and budget checks, then reserve AI Balance before invoking
+the provider.
 
 ### Usage Examples
 
@@ -154,6 +208,9 @@ vault:daily:calls:{YYYY-MM-DD}  integer  global daily call counter, TTL 35d
 vault:daily:keys:{YYYY-MM-DD}   hash  per-key daily usage (calls/tokens/cost), TTL 35d
 vault:usage:log                  list  recent proxy call logs (last 1000)
 vault:accounts                   hash  key=acc-{id}, value=AccountRecord JSON (username/password AES-256-GCM encrypted)
+vault:botearn:key-index          hash  key=external key ID, value=hashed Key storage ID
+vault:botearn:billing-pending    hash  retry queue for uncertain settle/release callbacks
+vault:botearn:model-probes       hash  safe probe status only; no prompts or responses
 ```
 
 ### SubKeyData fields
@@ -197,6 +254,11 @@ AMAZON_MASTER_KEY=
 
 # Auth
 JWT_SECRET=
+
+# BotEarn AI Balance
+BOTEARN_BILLING_URL=https://your-project.supabase.co/functions/v1/vault-billing-api
+VAULT_BILLING_SECRET=
+CRON_SECRET=
 
 # Google OAuth (optional — enables "Continue with Google")
 GOOGLE_CLIENT_ID=
@@ -246,6 +308,7 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/vault`, l
 ## Key Features
 
 - **One key = one model**: Model is locked at creation time; vendor derived automatically
+- **BotEarn multi-model Keys**: Exact allowlist, total/daily nano-USD budgets, expiry, and policy version
 - **User isolation**: Each user only sees their own keys and usage stats
 - **Quota**: Call-based or token-based quota per key (`totalQuota`)
 - **Expiry**: Date-based key expiry (`expiresAt`)

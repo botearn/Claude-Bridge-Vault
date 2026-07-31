@@ -28,7 +28,8 @@ export function buildUpstreamRequest(
     'Content-Type': 'application/json',
   };
 
-  if (config.authStyle === 'x-api-key') {
+  if (config.authStyle === 'x-api-key'
+    && normalizedPath !== 'v1/chat/completions') {
     headers['x-api-key'] = masterKey;
   } else {
     headers.Authorization = `Bearer ${masterKey}`;

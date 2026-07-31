@@ -11,6 +11,8 @@ export interface UserData {
 export type VendorId = 'claude' | 'tokenutopia' | 'palebluedot' | 'clawos' | 'clawos-overseas' | 'amazon';
 export type AuthStyle = 'x-api-key' | 'bearer';
 export type KeyScope = 'internal' | 'external';
+export type BillingMode = 'legacy' | 'botearn_ai_balance';
+export type SubKeyStatus = 'active' | 'revoke_pending' | 'revoked';
 
 export interface VendorConfig {
   label: string;
@@ -40,6 +42,15 @@ export interface SubKeyData {
   rpmLimit?: number | null;    // requests per minute limit (null = unlimited)
   tpmLimit?: number | null;    // tokens per minute limit (null = unlimited)
   budgetUsd?: number | null;   // max USD spend per key (null = unlimited)
+  billingMode?: BillingMode;   // missing means legacy
+  billingAccountId?: string;
+  externalKeyId?: string;
+  allowedModels?: string[];
+  totalLimitNanoUsd?: string;
+  dailyLimitNanoUsd?: string;
+  policyVersion?: number;
+  keyPrefix?: string;
+  status?: SubKeyStatus;       // missing means active for legacy records
 }
 
 export interface SubKeyRecord extends SubKeyData {

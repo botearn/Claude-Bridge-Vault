@@ -1,8 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { redis } from '@/lib/redis';
 import { isValidVendor, VENDOR_CONFIG } from '@/lib/vendors';
 import { buildUpstreamRequest } from '@/lib/proxy';
-import { extractTokenUsage, estimateVendorCostUsd, safeModelFromBody } from '@/lib/billing';
+import {
+  calculateUsageCostNanoUsd,
+  constrainBotEarnRequestBody,
+  estimateMaxCostNanoUsd,
+  extractTokenUsage,
+  estimateVendorCostUsd,
+  getExplicitModelPrice,
+  safeModelFromBody,
+  type TokenUsage,
+} from '@/lib/billing';
 import { logEvent } from '@/lib/events';
 import { proxyRateLimit } from '@/lib/ratelimit';
 import { notify } from '@/lib/webhook';
@@ -14,6 +24,16 @@ import { writeUsageLog } from '@/lib/usage-log';
 import { applySubKeyDelta } from '@/lib/subkey-mutate';
 import { bedrockConverseToOpenAI, buildBedrockConverseRequest, openAICompletionToSSE } from '@/lib/bedrock';
 import type { VendorId } from '@/lib/types';
+import { botEarnStorageKey } from '@/lib/subkey-storage';
+import { catalogModelId, findCatalogModel } from '@/lib/model-catalog';
+import { isModelProbePassed } from '@/lib/model-probes';
+import {
+  BotEarnBillingError,
+  finalizeBotEarnBilling,
+  queueUncertainBotEarnReserveRelease,
+  reserveBotEarnBalance,
+  type BotEarnSettleBody,
+} from '@/lib/botearn-billing';
 
 type RouteContext = {
   params: Promise<{ vendor: string; path?: string[] }>;
@@ -96,11 +116,14 @@ function setBodyModel(rawBody: string, model: string): string {
 async function extractTokensFromSSE(
   stream: ReadableStream,
   isAnthropicFormat: boolean,
-): Promise<{ inputTokens: number; outputTokens: number; realModel?: string }> {
+): Promise<TokenUsage & { realModel?: string }> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let inputTokens = 0;
+  let cachedInputTokens = 0;
+  let cacheWriteTokens = 0;
   let outputTokens = 0;
+  let reasoningTokens = 0;
   let realModel: string | undefined;
   try {
     while (true) {
@@ -125,7 +148,12 @@ async function extractTokensFromSSE(
               const msg = evt.message as Record<string, unknown> | undefined;
               if (!realModel && typeof msg?.model === 'string') realModel = msg.model;
               const usage = msg?.usage as Record<string, number> | undefined;
-              if (usage) { inputTokens = usage.input_tokens ?? 0; outputTokens = usage.output_tokens ?? 0; }
+              if (usage) {
+                inputTokens = usage.input_tokens ?? 0;
+                cachedInputTokens = usage.cache_read_input_tokens ?? 0;
+                cacheWriteTokens = usage.cache_creation_input_tokens ?? 0;
+                outputTokens = usage.output_tokens ?? 0;
+              }
             } else if (evt.type === 'message_delta') {
               const usage = evt.usage as Record<string, number> | undefined;
               if (usage?.output_tokens) outputTokens = usage.output_tokens;
@@ -136,6 +164,15 @@ async function extractTokensFromSSE(
             if (usage) {
               if (typeof usage.prompt_tokens === 'number') inputTokens = usage.prompt_tokens;
               if (typeof usage.completion_tokens === 'number') outputTokens = usage.completion_tokens;
+              const promptDetails = usage.prompt_tokens_details as unknown as Record<string, number> | undefined;
+              const completionDetails = usage.completion_tokens_details as unknown as Record<string, number> | undefined;
+              if (typeof promptDetails?.cached_tokens === 'number') {
+                cachedInputTokens = promptDetails.cached_tokens;
+                inputTokens = Math.max(inputTokens - cachedInputTokens, 0);
+              }
+              if (typeof completionDetails?.reasoning_tokens === 'number') {
+                reasoningTokens = completionDetails.reasoning_tokens;
+              }
             }
           }
         } catch { /* ignore malformed lines */ }
@@ -144,7 +181,86 @@ async function extractTokensFromSSE(
   } catch { /* ignore stream errors */ } finally {
     reader.releaseLock();
   }
-  return { inputTokens, outputTokens, realModel };
+  return {
+    inputTokens,
+    cachedInputTokens,
+    cacheWriteTokens,
+    outputTokens,
+    reasoningTokens,
+    realModel,
+  };
+}
+
+interface BotEarnRequestContext {
+  requestId: string;
+  priceSnapshotId: string;
+  requestedModelId: string;
+  price: NonNullable<ReturnType<typeof getExplicitModelPrice>>;
+}
+
+function unknownUsageBody(context: BotEarnRequestContext): BotEarnSettleBody {
+  return {
+    request_id: context.requestId,
+    price_snapshot_id: context.priceSnapshotId,
+    actual_model_id: null,
+    actual_cost_nano_usd: null,
+    input_tokens: null,
+    cached_input_tokens: null,
+    cache_write_tokens: null,
+    output_tokens: null,
+    reasoning_tokens: null,
+    usage_status: 'unknown',
+  };
+}
+
+function authoritativeUsageBody(
+  context: BotEarnRequestContext,
+  actualModelId: string,
+  usage: TokenUsage,
+): BotEarnSettleBody {
+  return {
+    request_id: context.requestId,
+    price_snapshot_id: context.priceSnapshotId,
+    actual_model_id: actualModelId,
+    actual_cost_nano_usd: calculateUsageCostNanoUsd(context.price, usage).toString(),
+    input_tokens: usage.inputTokens,
+    cached_input_tokens: usage.cachedInputTokens,
+    cache_write_tokens: usage.cacheWriteTokens,
+    output_tokens: usage.outputTokens,
+    reasoning_tokens: usage.reasoningTokens,
+    usage_status: 'authoritative',
+  };
+}
+
+async function finalizeWithoutMaskingProviderResponse(
+  context: BotEarnRequestContext,
+  body: BotEarnSettleBody,
+): Promise<void> {
+  try {
+    await finalizeBotEarnBilling('settle', body);
+  } catch (error) {
+    console.error('BotEarn billing finalization queued for reconciliation', {
+      request_id: context.requestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function releaseWithoutMaskingValidationError(
+  context: BotEarnRequestContext,
+  reason: string,
+): Promise<void> {
+  try {
+    await finalizeBotEarnBilling('release', {
+      request_id: context.requestId,
+      reason,
+    });
+  } catch (error) {
+    console.error('BotEarn billing release queued for reconciliation', {
+      request_id: context.requestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
@@ -153,6 +269,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   const sourcePath = getSourcePath(req);
   const requestPath = req.nextUrl.pathname;
   const requestStart = Date.now();
+  let botEarnContext: BotEarnRequestContext | null = null;
 
   if (!isValidVendor(vendor)) {
     return NextResponse.json({ error: 'Unknown vendor' }, { status: 404 });
@@ -163,6 +280,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   if (!subKey) {
     return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });
   }
+  let keyLogId = botEarnStorageKey(subKey).slice(-8);
 
   // Early check: at least one channel/key must exist for this vendor
   const defaultChannels = await resolveChannels(vendor);
@@ -172,8 +290,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
   }
 
   try {
-    const keyDataStr = await redis.hget('vault:subkeys', subKey);
+    const hashedStorageKey = botEarnStorageKey(subKey);
+    const hashedKeyData = await redis.hget('vault:subkeys', hashedStorageKey);
+    const keyStorageKey = hashedKeyData ? hashedStorageKey : subKey;
+    const keyDataStr = hashedKeyData ?? await redis.hget('vault:subkeys', subKey);
     const keyData = parseKeyRecord(keyDataStr);
+    const isBotEarnKey = (keyData as { billingMode?: string } | null)?.billingMode
+      === 'botearn_ai_balance';
+    const keyMetricId = isBotEarnKey ? keyStorageKey : subKey;
+    keyLogId = isBotEarnKey ? keyStorageKey.slice(-8) : subKey.slice(-8);
 
     const keyUserId = (keyData as { userId?: string } | null)?.userId;
     const kMeta = keyData
@@ -196,7 +321,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       errorCode?: number;
     }) => {
       void writeUsageLog({
-        subKey: subKey.slice(-8),
+        subKey: keyLogId,
         userId: keyUserId ?? undefined,
         vendor,
         model: params.model ?? model,
@@ -215,9 +340,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
       });
     };
 
-    if (!keyData || (keyData as { vendor?: string }).vendor !== vendor) {
+    if (!keyData || (!isBotEarnKey && (keyData as { vendor?: string }).vendor !== vendor)) {
       recordUsageLog({ status: 'error', errorCode: 403 });
       return NextResponse.json({ error: 'Invalid or mismatched key' }, { status: 403 });
+    }
+    if (isBotEarnKey && (keyData as { status?: string }).status !== 'active') {
+      recordUsageLog({ status: 'error', errorCode: 403 });
+      return NextResponse.json({ error: 'Key is not active' }, { status: 403 });
     }
 
     const kd = keyData as {
@@ -227,18 +356,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
       inputTokens?: number;
       outputTokens?: number;
       costUsd?: number;
+      billingAccountId?: string;
+      externalKeyId?: string;
+      allowedModels?: string[];
+      policyVersion?: number;
     };
 
     if (kd.expiresAt && new Date(kd.expiresAt) < new Date()) {
       const ts = new Date().toISOString();
-      void logEvent({ type: 'key.expired', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
-      notify({ event: 'key.expired', subKey: subKey.slice(-8), ...kMeta, detail: `expired at ${kd.expiresAt}`, timestamp: ts });
+      void logEvent({ type: 'key.expired', subKey: keyLogId, ...kMeta, timestamp: ts });
+      notify({ event: 'key.expired', subKey: keyLogId, ...kMeta, detail: `expired at ${kd.expiresAt}`, timestamp: ts });
       recordUsageLog({ status: 'error', errorCode: 403 });
       return NextResponse.json({ error: 'Key expired' }, { status: 403 });
     }
 
     // Rate limit check: sliding window per sub-key
-    const rl = await proxyRateLimit.limit(subKey);
+    const rl = await proxyRateLimit.limit(keyMetricId);
     if (!rl.success) {
       const retryAfter = Math.ceil((rl.reset - Date.now()) / 1000);
       recordUsageLog({ status: 'error', errorCode: 429 });
@@ -253,8 +386,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       const usedTokens = (kd.inputTokens ?? 0) + (kd.outputTokens ?? 0);
       if (usedTokens >= kd.totalQuota) {
         const ts = new Date().toISOString();
-        void logEvent({ type: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
-        notify({ event: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, detail: `${usedTokens}/${kd.totalQuota} tokens`, timestamp: ts });
+        void logEvent({ type: 'quota.exceeded', subKey: keyLogId, ...kMeta, timestamp: ts });
+        notify({ event: 'quota.exceeded', subKey: keyLogId, ...kMeta, detail: `${usedTokens}/${kd.totalQuota} tokens`, timestamp: ts });
         recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json({ error: 'Quota exceeded' }, { status: 429 });
       }
@@ -263,7 +396,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     // Per-key RPM limit check
     const rpmLimit = (keyData as { rpmLimit?: number | null }).rpmLimit;
     if (rpmLimit != null && rpmLimit > 0) {
-      const rpm = await checkRpmLimit(subKey, rpmLimit);
+      const rpm = await checkRpmLimit(keyMetricId, rpmLimit);
       if (!rpm.ok) {
         recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json(
@@ -276,7 +409,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     // Per-key TPM pre-flight check (based on accumulated usage this minute)
     const tpmLimit = (keyData as { tpmLimit?: number | null }).tpmLimit;
     if (tpmLimit != null && tpmLimit > 0) {
-      const currentTpm = await getTpmUsage(subKey);
+      const currentTpm = await getTpmUsage(keyMetricId);
       if (currentTpm >= tpmLimit) {
         recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json(
@@ -292,8 +425,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       const spentUsd = kd.costUsd ?? 0;
       if (spentUsd >= budgetUsd) {
         const ts = new Date().toISOString();
-        void logEvent({ type: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, timestamp: ts });
-        notify({ event: 'quota.exceeded', subKey: subKey.slice(-8), ...kMeta, detail: `$${spentUsd.toFixed(4)}/$${budgetUsd} USD budget`, timestamp: ts });
+        void logEvent({ type: 'quota.exceeded', subKey: keyLogId, ...kMeta, timestamp: ts });
+        notify({ event: 'quota.exceeded', subKey: keyLogId, ...kMeta, detail: `$${spentUsd.toFixed(4)}/$${budgetUsd} USD budget`, timestamp: ts });
         recordUsageLog({ status: 'error', errorCode: 429 });
         return NextResponse.json({ error: 'Key USD budget exceeded' }, { status: 429 });
       }
@@ -350,6 +483,85 @@ export async function POST(req: NextRequest, context: RouteContext) {
       } catch { /* keep original body */ }
     }
 
+    if (isBotEarnKey) {
+      const catalogModel = findCatalogModel(vendor, model);
+      const requestedModelId = catalogModelId(vendor, model ?? '');
+      const allowedModels = kd.allowedModels ?? [];
+      const price = model ? getExplicitModelPrice(vendor, model) : null;
+      if (!catalogModel || !price) {
+        recordUsageLog({ status: 'error', errorCode: 400, model });
+        return NextResponse.json(
+          { error: 'Model is not available for balance billing', code: 'AI_MODEL_NOT_AVAILABLE' },
+          { status: 400 },
+        );
+      }
+      if (!await isModelProbePassed(requestedModelId)) {
+        recordUsageLog({ status: 'error', errorCode: 503, model });
+        return NextResponse.json(
+          { error: 'Model health probe is unavailable', code: 'AI_MODEL_PROBE_UNAVAILABLE' },
+          { status: 503 },
+        );
+      }
+      if (!allowedModels.includes(requestedModelId)) {
+        recordUsageLog({ status: 'error', errorCode: 403, model });
+        return NextResponse.json(
+          { error: 'Model is not allowed for this key', code: 'AI_MODEL_NOT_ALLOWED' },
+          { status: 403 },
+        );
+      }
+      if (!kd.billingAccountId || !kd.externalKeyId || !kd.policyVersion) {
+        recordUsageLog({ status: 'error', errorCode: 403, model });
+        return NextResponse.json(
+          { error: 'Balance billing key is incomplete', code: 'AI_KEY_POLICY_INVALID' },
+          { status: 403 },
+        );
+      }
+      const constrained = constrainBotEarnRequestBody(rawBody);
+      if (constrained.errorCode) {
+        recordUsageLog({ status: 'error', errorCode: 400, model });
+        return NextResponse.json(
+          { error: 'Request cannot be safely pre-authorized', code: constrained.errorCode },
+          { status: 400 },
+        );
+      }
+      rawBody = constrained.body;
+
+      const requestId = randomUUID();
+      const maxCost = estimateMaxCostNanoUsd(rawBody, price);
+      const reservedContext: BotEarnRequestContext = {
+        requestId,
+        priceSnapshotId: catalogModel.pricing.snapshotId,
+        requestedModelId,
+        price,
+      };
+      try {
+        await reserveBotEarnBalance({
+          request_id: requestId,
+          billing_account_id: kd.billingAccountId,
+          external_key_id: kd.externalKeyId,
+          model_id: requestedModelId,
+          price_snapshot_id: catalogModel.pricing.snapshotId,
+          estimation_policy_version: catalogModel.pricing.estimationPolicyVersion,
+          max_cost_nano_usd: maxCost.toString(),
+        });
+      } catch (error) {
+        const billingError = error instanceof BotEarnBillingError ? error : null;
+        if (!billingError || billingError.status >= 500) {
+          await queueUncertainBotEarnReserveRelease(requestId);
+        }
+        const status = billingError && billingError.status >= 400 && billingError.status < 500
+          ? billingError.status
+          : 503;
+        const code = billingError?.code ?? 'BOTEARN_BILLING_UNAVAILABLE';
+        recordUsageLog({ status: 'error', errorCode: status, model });
+        return NextResponse.json(
+          { error: 'AI balance authorization failed', code },
+          { status },
+        );
+      }
+      botEarnContext = reservedContext;
+    }
+
     // Resolve channels (Redis with circuit-breaker, or env var fallback)
     const channels = await resolveChannels(vendor, model);
     let response: Response | null = null;
@@ -358,7 +570,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     for (let i = 0; i < channels.length; i++) {
       const ch = channels[i];
       if (i === 0) {
-        console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} model=${model ?? '?'} stream=${streaming} channel=${ch.id ?? 'env'}${ch.isProbe ? ' (probe)' : ''}`);
+        console.log(`[proxy] ${vendor} key=${keyLogId} model=${model ?? '?'} stream=${streaming} channel=${ch.id ?? 'env'}${ch.isProbe ? ' (probe)' : ''}`);
       }
 
       let res: Response;
@@ -382,6 +594,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
           }
         } catch (error) {
           console.error(`[proxy] ${vendor} failed to build Converse request`, error);
+          if (botEarnContext) {
+            await releaseWithoutMaskingValidationError(botEarnContext, 'REQUEST_BUILD_FAILED');
+            botEarnContext = null;
+          }
           recordUsageLog({ status: 'error', errorCode: 400, model });
           return NextResponse.json({ error: 'Invalid Bedrock request' }, { status: 400 });
         }
@@ -420,20 +636,34 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
 
       // Last channel or non-retryable error
-      console.warn(`[proxy] ${vendor} key=${subKey.slice(-8)} all channels failed, last: ${errorDesc}`);
+      console.warn(`[proxy] ${vendor} key=${keyLogId} all channels failed, last: ${errorDesc}`);
       const errData = await res.json().catch(() => ({ error: 'Upstream error' }));
+      if (botEarnContext) {
+        await finalizeWithoutMaskingProviderResponse(
+          botEarnContext,
+          unknownUsageBody(botEarnContext),
+        );
+        botEarnContext = null;
+      }
       recordUsageLog({ status: 'error', errorCode: res.status, model });
       return NextResponse.json(errData, { status: res.status });
     }
 
     if (!response || !usedChannel) {
+      if (botEarnContext) {
+        await finalizeWithoutMaskingProviderResponse(
+          botEarnContext,
+          unknownUsageBody(botEarnContext),
+        );
+        botEarnContext = null;
+      }
       recordUsageLog({ status: 'error', errorCode: 502, model });
       return NextResponse.json({ error: 'All upstream channels failed' }, { status: 502 });
     }
 
     // Increment call count + lastUsed (atomic, fire-and-forget)
     const now = new Date().toISOString();
-    void applySubKeyDelta(subKey, { usageInc: 1, lastUsed: now });
+    void applySubKeyDelta(keyStorageKey, { usageInc: 1, lastUsed: now });
 
     const today = now.slice(0, 10);
     void redis.incr(`vault:daily:calls:${today}`)
@@ -443,22 +673,48 @@ export async function POST(req: NextRequest, context: RouteContext) {
     // Streaming: pipe SSE through, parse tokens in background
     if (streaming && response.body) {
       const [clientStream, parseStream] = response.body.tee();
+      const streamingBillingContext = botEarnContext;
+      botEarnContext = null;
 
-      void extractTokensFromSSE(parseStream, isAnthropicFormat).then(async ({ inputTokens, outputTokens, realModel }) => {
-        if (inputTokens === 0 && outputTokens === 0) return;
+      after(async () => {
+        const usage = await extractTokensFromSSE(parseStream, isAnthropicFormat);
+        const {
+          inputTokens,
+          outputTokens,
+          realModel,
+        } = usage;
         const effectiveModel = realModel ?? model;
-        const costInc = estimateVendorCostUsd(vendor, effectiveModel, { inputTokens, outputTokens });
-        console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ stream model=${effectiveModel ?? '?'} in=${inputTokens} out=${outputTokens} cost=$${costInc.toFixed(6)}`);
-        void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens, outputTokens });
-        void applySubKeyDelta(subKey, {
+        if (streamingBillingContext) {
+          const hasUsage = inputTokens > 0
+            || usage.cachedInputTokens > 0
+            || usage.cacheWriteTokens > 0
+            || outputTokens > 0;
+          await finalizeWithoutMaskingProviderResponse(
+            streamingBillingContext,
+            hasUsage
+              ? authoritativeUsageBody(
+                  streamingBillingContext,
+                  effectiveModel
+                    ? catalogModelId(vendor, effectiveModel)
+                    : streamingBillingContext.requestedModelId,
+                  usage,
+                )
+              : unknownUsageBody(streamingBillingContext),
+          );
+        }
+        if (inputTokens === 0 && outputTokens === 0) return;
+        const costInc = estimateVendorCostUsd(vendor, effectiveModel, usage);
+        console.log(`[proxy] ${vendor} key=${keyLogId} ✓ stream model=${effectiveModel ?? '?'} in=${inputTokens} out=${outputTokens} cost=$${costInc.toFixed(6)}`);
+        void logEvent({ type: 'proxy.success', subKey: keyLogId, ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens, outputTokens });
+        void applySubKeyDelta(keyStorageKey, {
           inputTokensInc: inputTokens,
           outputTokensInc: outputTokens,
           costUsdInc: costInc,
         });
-        void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
+        void recordDailyKeyUsage(keyMetricId, today, { calls: 1, inputTokens, outputTokens, costUsd: costInc });
         // TPM accounting
         if (tpmLimit != null && tpmLimit > 0 && inputTokens + outputTokens > 0) {
-          void checkTpmLimit(subKey, tpmLimit, inputTokens + outputTokens);
+          void checkTpmLimit(keyMetricId, tpmLimit, inputTokens + outputTokens);
         }
         // Structured usage log
         recordUsageLog({
@@ -485,6 +741,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
     try {
       data = await response.json() as Record<string, unknown>;
     } catch {
+      if (botEarnContext) {
+        await finalizeWithoutMaskingProviderResponse(
+          botEarnContext,
+          unknownUsageBody(botEarnContext),
+        );
+        botEarnContext = null;
+      }
       return NextResponse.json({ error: 'Upstream returned non-JSON response' }, { status: 502 });
     }
     const realModel = typeof data.model === 'string' ? data.model : undefined;
@@ -493,18 +756,33 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const inputInc = tokenUsage?.inputTokens ?? 0;
     const outputInc = tokenUsage?.outputTokens ?? 0;
     const costInc = tokenUsage ? estimateVendorCostUsd(vendor, effectiveModel, tokenUsage) : 0;
-    console.log(`[proxy] ${vendor} key=${subKey.slice(-8)} ✓ model=${effectiveModel ?? '?'} in=${inputInc} out=${outputInc} cost=$${costInc.toFixed(6)}`);
-    void logEvent({ type: 'proxy.success', subKey: subKey.slice(-8), ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens: inputInc, outputTokens: outputInc });
+    if (botEarnContext) {
+      await finalizeWithoutMaskingProviderResponse(
+        botEarnContext,
+        tokenUsage
+          ? authoritativeUsageBody(
+              botEarnContext,
+              effectiveModel
+                ? catalogModelId(vendor, effectiveModel)
+                : botEarnContext.requestedModelId,
+              tokenUsage,
+            )
+          : unknownUsageBody(botEarnContext),
+      );
+      botEarnContext = null;
+    }
+    console.log(`[proxy] ${vendor} key=${keyLogId} ✓ model=${effectiveModel ?? '?'} in=${inputInc} out=${outputInc} cost=$${costInc.toFixed(6)}`);
+    void logEvent({ type: 'proxy.success', subKey: keyLogId, ...kMeta, timestamp: new Date().toISOString(), model: effectiveModel ?? undefined, inputTokens: inputInc, outputTokens: outputInc });
 
-    void applySubKeyDelta(subKey, {
+    void applySubKeyDelta(keyStorageKey, {
       inputTokensInc: inputInc,
       outputTokensInc: outputInc,
       costUsdInc: costInc,
     });
-    void recordDailyKeyUsage(subKey, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
+    void recordDailyKeyUsage(keyMetricId, today, { calls: 1, inputTokens: inputInc, outputTokens: outputInc, costUsd: costInc });
     // TPM accounting
     if (tpmLimit != null && tpmLimit > 0 && inputInc + outputInc > 0) {
-      void checkTpmLimit(subKey, tpmLimit, inputInc + outputInc);
+      void checkTpmLimit(keyMetricId, tpmLimit, inputInc + outputInc);
     }
     // Structured usage log
     recordUsageLog({
@@ -521,9 +799,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    console.error(`[proxy] ${vendor} key=${subKey.slice(-8)} fatal`, error);
+    if (botEarnContext) {
+      await finalizeWithoutMaskingProviderResponse(
+        botEarnContext,
+        unknownUsageBody(botEarnContext),
+      );
+      botEarnContext = null;
+    }
+    console.error(`[proxy] ${vendor} key=${keyLogId} fatal`, error);
     void writeUsageLog({
-      subKey: subKey.slice(-8),
+      subKey: keyLogId,
       vendor,
       inputTokens: 0,
       outputTokens: 0,
