@@ -1,3 +1,13 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/internal/botearn-reconcile",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/internal/botearn-model-probe",
+      "schedule": "17 2 * * *"
+    }
+  ]
 }

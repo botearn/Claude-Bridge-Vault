@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "lint": "next lint",
     "console:install": "cd console-app && npm install",
     "console:dev": "cd console-app && npm run dev",
