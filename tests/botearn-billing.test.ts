@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   calculateUsageCostNanoUsd,
@@ -6,6 +7,14 @@ import {
   estimateMaxCostNanoUsd,
   getExplicitModelPrice,
 } from '../lib/billing.ts';
+
+test('BotEarn Key 合同显式要求 AI Balance 计费模式', () => {
+  const route = readFileSync(
+    new URL('../app/api/v1/botearn/keys/route.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(route, /body\.billingMode === 'botearn_ai_balance'/);
+});
 
 test('按纳美元精确计算输入、缓存写入与输出费用', () => {
   const price = getExplicitModelPrice('claude', 'claude-opus-5');

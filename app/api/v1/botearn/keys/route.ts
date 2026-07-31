@@ -12,6 +12,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const POSITIVE_INTEGER_RE = /^[1-9][0-9]{0,18}$/;
 
 interface KeyPayload {
+  billingMode: 'botearn_ai_balance';
   name: string;
   externalKeyId: string;
   billingAccountId: string;
@@ -50,6 +51,9 @@ function parsePositiveInteger(value: unknown): string | null {
 }
 
 function validateKeyPayload(body: Record<string, unknown>): KeyPayload | null {
+  const billingMode = body.billingMode === 'botearn_ai_balance'
+    ? body.billingMode
+    : null;
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const externalKeyId = typeof body.externalKeyId === 'string' ? body.externalKeyId.trim() : '';
   const billingAccountId = typeof body.billingAccountId === 'string'
@@ -73,7 +77,8 @@ function validateKeyPayload(body: Record<string, unknown>): KeyPayload | null {
       : undefined;
 
   const activeModels = new Set(getVaultCatalog().map(model => model.id));
-  if (!name || name.length > 80
+  if (!billingMode
+    || !name || name.length > 80
     || !UUID_RE.test(externalKeyId)
     || !UUID_RE.test(billingAccountId)
     || allowedModels.length === 0
@@ -89,6 +94,7 @@ function validateKeyPayload(body: Record<string, unknown>): KeyPayload | null {
   }
 
   return {
+    billingMode,
     name,
     externalKeyId,
     billingAccountId,

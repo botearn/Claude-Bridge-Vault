@@ -40,6 +40,7 @@ return 1
 `;
 
 export interface BotEarnKeyInput {
+  billingMode: 'botearn_ai_balance';
   name: string;
   externalKeyId: string;
   billingAccountId: string;
@@ -93,7 +94,7 @@ export async function createBotEarnKey(input: BotEarnKeyInput): Promise<BotEarnC
     lastUsed: null,
     totalQuota: null,
     expiresAt: input.expiresAt,
-    billingMode: 'botearn_ai_balance',
+    billingMode: input.billingMode,
     billingAccountId: input.billingAccountId,
     externalKeyId: input.externalKeyId,
     allowedModels: input.allowedModels,
